@@ -52,11 +52,16 @@ class WebSocketManager: ObservableObject {
             return
         }
 
+        guard let apiKey = Utilities.loadSecret(forKey: "OPENAI_API_KEY") else {
+            print("Failed to load API key.")
+            return
+        }
+
         // Create a URLRequest to add headers
         var request = URLRequest(url: url)
 
         // Add hardcoded headers
-        request.setValue("Bearer " + "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", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer " + apiKey, forHTTPHeaderField: "Authorization")
         request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
         
         let session = URLSession(configuration: .default)

@@ -1,4 +1,6 @@
 # Files to not upload to Git
 
 .DS_Store
+*.xcodeproj/*
 RosieApp/Preview\ Content/
+RosieApp/Secrets.plist
