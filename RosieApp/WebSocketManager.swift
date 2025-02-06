@@ -460,43 +460,89 @@ class WebSocketManager: ObservableObject {
                                         let callId = dictionary["call_id"] as? String
 
                                         if let functionName = dictionary["name"] as? String {
-                                            
-                                            if let argumentsString = dictionary["arguments"] as? String {
-                                                do {
-                                                    // Decode the JSON string into a dictionary
-                                                    if let argumentsData = argumentsString.data(using: .utf8) {
-                                                        let args = try JSONSerialization.jsonObject(with: argumentsData, options: []) as? [String: Any]
-                                                        
-                                                        if let args = args,
-                                                           let name = args["name"] as? String,
-                                                           let city = args["city"] as? String {
+                                            if (functionName == "restaurant_phone_lookup") {
+                                                print("Looking up restaurant phone number")
+                                                if let argumentsString = dictionary["arguments"] as? String {
+                                                    do {
+                                                        // Decode the JSON string into a dictionary
+                                                        if let argumentsData = argumentsString.data(using: .utf8) {
+                                                            let args = try JSONSerialization.jsonObject(with: argumentsData, options: []) as? [String: Any]
                                                             
-                                                            // Call the PhoneLookup function
-                                                            // invoker.invoke(functionName: functionName, param1: name, param2: city)
+                                                            if let args = args,
+                                                                let name = args["name"] as? String,
+                                                                let city = args["city"] as? String {
+                                                            
+                                                                // Call the PhoneLookup function
+                                                                // invoker.invoke(functionName: functionName, param1: name, param2: city)
 
-                                                            invoker.invoke(functionName: functionName, param1: name, param2: city) { result in
-                                                                // Send the result back to OpenAI
-                                                                self.sendFunctionDoneMessage(message: result, callId: callId ?? "")
+                                                                invoker.invoke(functionName: functionName, param1: name, param2: city) { result in
+                                                                    // Send the result back to OpenAI
+                                                                    self.sendFunctionDoneMessage(message: result, callId: callId ?? "")
+                                                                }
+                                                                // numberLookup.lookupPhoneNumber(name: name, city: city) { result in
+                                                                    // Send the result back to OpenAI
+                                                                //     self.sendFunctionDoneMessage(message: result, callId: callId ?? "")
+                                                                // }
+                                                            } else {
+                                                                // Handle invalid arguments case
+                                                                let errorMessage = "Invalid arguments received for restaurant_phone_lookup."
+                                                                self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
                                                             }
-                                                            // numberLookup.lookupPhoneNumber(name: name, city: city) { result in
-                                                                // Send the result back to OpenAI
-                                                            //     self.sendFunctionDoneMessage(message: result, callId: callId ?? "")
-                                                            // }
-                                                        } else {
-                                                            // Handle invalid arguments case
-                                                            let errorMessage = "Invalid arguments received for restaurant_phone_lookup."
-                                                            self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
                                                         }
+                                                    } catch {
+                                                        print("Failed to decode arguments JSON: \(error.localizedDescription)")
+                                                        let errorMessage = "Invalid arguments received for restaurant_phone_lookup."
+                                                        self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
                                                     }
-                                                } catch {
-                                                    print("Failed to decode arguments JSON: \(error.localizedDescription)")
+                                                } else {
+                                                    print("The 'arguments' field is missing or is not a string.")
                                                     let errorMessage = "Invalid arguments received for restaurant_phone_lookup."
                                                     self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
                                                 }
-                                            } else {
-                                                print("The 'arguments' field is missing or is not a string.")
-                                                let errorMessage = "Invalid arguments received for restaurant_phone_lookup."
-                                                self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
+                                            }
+                                            else if (functionName == "make_phone_call") {
+                                                print("Making phone call")
+                                                if let argumentsString = dictionary["arguments"] as? String {
+                                                    do {
+                                                        // Decode the JSON string into a dictionary
+                                                        if let argumentsData = argumentsString.data(using: .utf8) {
+                                                            let args = try JSONSerialization.jsonObject(with: argumentsData, options: []) as? [String: Any]
+                                                            
+                                                            if let args = args,
+                                                                let name = args["name"] as? String,
+                                                                let phone = args["phone_number"] as? String {
+                                                            
+                                                                // Call the PhoneLookup function
+                                                                // invoker.invoke(functionName: functionName, param1: name, param2: city)
+
+                                                                invoker.invoke(functionName: functionName, param1: name, param2: phone) { result in
+                                                                    // Send the result back to OpenAI
+                                                                    self.sendFunctionDoneMessage(message: result, callId: callId ?? "")
+                                                                }
+                                                                // numberLookup.lookupPhoneNumber(name: name, city: city) { result in
+                                                                    // Send the result back to OpenAI
+                                                                //     self.sendFunctionDoneMessage(message: result, callId: callId ?? "")
+                                                                // }
+                                                            } else {
+                                                                // Handle invalid arguments case
+                                                                let errorMessage = "Invalid arguments received for restaurant_phone_lookup."
+                                                                self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
+                                                            }
+                                                        }
+                                                    } catch {
+                                                        print("Failed to decode arguments JSON: \(error.localizedDescription)")
+                                                        let errorMessage = "Invalid arguments received for restaurant_phone_lookup."
+                                                        self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
+                                                    }
+                                                } else {
+                                                    print("The 'arguments' field is missing or is not a string.")
+                                                    let errorMessage = "Invalid arguments received for restaurant_phone_lookup."
+                                                    self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
+                                                }
+
+                                            }
+                                            else {
+                                                print("ERROR: Unrecognized function call")
                                             }
                                         }
 

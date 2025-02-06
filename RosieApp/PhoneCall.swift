@@ -10,7 +10,7 @@ import Foundation
 
 class PhoneCall: ClientToolProtocol {
     // Method to call the phone number of a business
-    func makePhoneCall(name: String, city: String, completion: @escaping (String) -> Void) {
+    func makePhoneCall(name: String, phone: String, completion: @escaping (String) -> Void) {
         // Dummy URL for your REST API
         guard let url = URL(string: "https://api.example.com/phonecall") else {
             completion("Invalid URL")
@@ -22,7 +22,7 @@ class PhoneCall: ClientToolProtocol {
         request.httpMethod = "POST"
         
         // JSON request body
-        let parameters: [String: String] = ["name": name, "city": city]
+        let parameters: [String: String] = ["name": name, "phone": phone]
         
         // Encode the parameters as JSON
         do {

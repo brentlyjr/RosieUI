@@ -12,6 +12,8 @@ class NumberLookup {
     
     // Method to look up a phone number for a restaurant
     func lookupPhoneNumber(name: String, city: String, completion: @escaping (String) -> Void) {
+        print("**** Looking up phone number!!!!!")
+        
         // Validate input parameters
         guard !name.isEmpty, !city.isEmpty else {
             completion("Error: Please provide both a restaurant name and a city name.")
