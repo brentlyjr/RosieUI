@@ -11,6 +11,7 @@ import Foundation
 class PhoneCall: ClientToolProtocol {
     // Method to call the phone number of a business
     func makePhoneCall(name: String, phone: String, completion: @escaping (String) -> Void) {
+
         // Dummy URL for your REST API
         guard let url = URL(string: "https://api.example.com/phonecall") else {
             completion("Invalid URL")

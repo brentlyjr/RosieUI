@@ -402,7 +402,10 @@ class WebSocketManager: ObservableObject {
                             if let dictionary = jsonObject as? [String: Any] {
                                 
                                 if let type = dictionary["type"] as? String, let eventId = dictionary["event_id"] as? String {
-                                    print("Received message type: \(type), event_id: \(eventId)")
+                                    
+                                    if (!type.contains("delta")) {
+                                        print("Received message type: \(type), event_id: \(eventId)")
+                                    }
 
                                     switch type {
 
@@ -430,7 +433,7 @@ class WebSocketManager: ObservableObject {
 //                                        }
                                     case "response.audio_transcript.done":
                                         // End of our voice message back from GPT, so ensure we put linebreak in text view
-                                        print("Received JSON dictionary: \(dictionary)")
+//                                        print("Received JSON dictionary: \(dictionary)")
                                         if let transcript = dictionary["transcript"] as? String {
                                             DispatchQueue.main.async {
                                                 self.receivedMessages.append(Message(text: transcript, color: .red))
@@ -440,15 +443,15 @@ class WebSocketManager: ObservableObject {
                                         //    self.receivedMessages.append(Message(text: "\n", color: .red))
                                         // }
                                     case "conversation.item.input_audio_transcription.completed":
-                                        print("*** Received JSON dictionary: \(dictionary)")
+//                                        print("*** Received JSON dictionary: \(dictionary)")
                                         if let transcript = dictionary["transcript"] as? String {
                                             DispatchQueue.main.async {
                                                 self.receivedMessages.append(Message(text: transcript, color: .blue))
                                             }
                                         }
 
-                                    case "input_audio_buffer.committed":
-                                        print("Received JSON dictionary: \(dictionary)")
+//                                    case "input_audio_buffer.committed":
+//                                        print("Received JSON dictionary: \(dictionary)")
                                     case "session.created":
                                         print("Received JSON dictionary: \(dictionary)")
                                     case "session.updated":

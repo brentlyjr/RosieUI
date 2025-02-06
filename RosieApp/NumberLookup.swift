@@ -8,11 +8,8 @@
 import Foundation
 
 class NumberLookup {
-    private let subscriptionKey = "5f6416b0e1e048fca03abc1be29512ab" // Replace with your Bing API key
-    
     // Method to look up a phone number for a restaurant
     func lookupPhoneNumber(name: String, city: String, completion: @escaping (String) -> Void) {
-        print("**** Looking up phone number!!!!!")
         
         // Validate input parameters
         guard !name.isEmpty, !city.isEmpty else {
@@ -20,6 +17,12 @@ class NumberLookup {
             return
         }
         
+        // Get the API key for the Bing query
+        guard let bingAPIKey = Utilities.loadSecret(forKey: "BING_API_KEY") else {
+            print("Failed to load API key.")
+            return
+        }
+
         // Construct the API endpoint
         let query = "\(name) restaurant in \(city)"
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
@@ -30,7 +33,7 @@ class NumberLookup {
         
         // Create the request
         var request = URLRequest(url: url)
-        request.addValue(subscriptionKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
+        request.addValue(bingAPIKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
         
         // Perform the API request
         let task = URLSession.shared.dataTask(with: request) { data, response, error in

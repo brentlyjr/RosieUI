@@ -11,7 +11,7 @@ struct ContentView: View {
     @StateObject private var webSocketManager = WebSocketManager(urlString: "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17")
     @State private var messageToSend: String = ""
     @State private var isMicrophoneStreaming: Bool = false // Tracks microphone state
-
+    
     var body: some View {
         VStack {
             // Microphone control button
@@ -30,8 +30,7 @@ struct ContentView: View {
                         Circle()
                             .stroke(isMicrophoneStreaming ? Color.red.opacity(0.7) : Color.clear, lineWidth: 8)
                             .scaleEffect(isMicrophoneStreaming ? 1.1 : 1.0)
-                            .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: isMicrophoneStreaming)
-                    )
+                            .animation(isMicrophoneStreaming ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default, value: isMicrophoneStreaming)                    )
             }
             .padding()
             .disabled(!webSocketManager.isConnected) // Disable if WebSocket is not connected
@@ -58,7 +57,7 @@ struct ContentView: View {
                     scrollProxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
-
+            
             HStack {
                 TextField("Message to send", text: $messageToSend)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -115,6 +114,7 @@ struct ContentView: View {
         if webSocketManager.isConnected {
             webSocketManager.startMicrophoneStreaming()
             isMicrophoneStreaming = true
+            hapticFeedback() // Feedback when starting
         } else {
             print("Cannot start microphone. WebSocket is not connected.")
         }
@@ -124,6 +124,12 @@ struct ContentView: View {
     private func stopMicrophone() {
         webSocketManager.stopMicrophoneStreaming()
         isMicrophoneStreaming = false
+        hapticFeedback() // Feedback when starting
+    }
+    
+    private func hapticFeedback() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(isMicrophoneStreaming ? .success : .warning)
     }
 }
 
