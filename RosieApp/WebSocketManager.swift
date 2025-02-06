@@ -583,7 +583,9 @@ class WebSocketManager: ObservableObject {
                 
             case .failure(let error):
                 print("Error receiving message: \(error.localizedDescription)")
-                self.isConnected = false
+                DispatchQueue.main.async {
+                    self.isConnected = false
+                }
             }
         }
     }
