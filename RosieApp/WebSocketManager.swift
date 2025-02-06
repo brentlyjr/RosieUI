@@ -98,23 +98,37 @@ class WebSocketManager: ObservableObject {
         print("Disconnected from WebSocket.")
     }
 
-    // Update our session at beginning with our initial settings
-    // This is where we have it give us back a transcript of our voice input
-    // as well as ask it for our plugins that we want as callbacks
-    func sendInitialSessionUpdate() {
+    // Helper function to send a WebSocket message
+    func sendWebSocketMessage(_ messageDict: [String: Any]) {
         guard let task = webSocketTask else {
             print("Cannot send message. WebSocket is not connected.")
             return
         }
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: messageDict, options: [])
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                let message = URLSessionWebSocketTask.Message.string(jsonString)
+                task.send(message) { error in
+                    if let error = error {
+                        print("Error sending message: \(error.localizedDescription)")
+                    } else {
+                        print("Message sent: \(jsonString)")
+                    }
+                }
+            }
+        } catch {
+            print("Failed to encode JSON: \(error.localizedDescription)")
+        }
+    }
+
+    func sendInitialSessionUpdate() {
         let threshold: Decimal = 0.1 // Use Decimal type for better precision control
         
-        // Create the JSON payload
-        // Update the session to get an audio transcription from our GPT
-        // And pass in our two tools we want to enable
         let event: [String: Any] = [
             "type": "session.update",
             "session": [
-                "instructions" : "You are a helpful AI assistant. You are trying to help make a restaurant reservation. You will need to collect the name and number of the restaurant. You will also need the date, desired time and number of people to make the reservation. Once you have all of this information, you can use your tool make_phone_call to try and make the reservation",
+                "instructions" : "You are a helpful AI assistant. You are trying to help make a restaurant reservation...",
                 "input_audio_transcription": [
                     "model": "whisper-1"
                 ],
@@ -161,71 +175,24 @@ class WebSocketManager: ObservableObject {
                                 ]
                             ],
                             "required": ["name", "phone_number"]
-                            ]
+                        ]
                     ]
                 ]
             ]
         ]
-
-        // Convert the JSON object to Data
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: event, options: [])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                // Send the JSON string
-                let message = URLSessionWebSocketTask.Message.string(jsonString)
-                task.send(message) { error in
-                    if let error = error {
-                        print("Error sending message: \(error.localizedDescription)")
-                    } else {
-                        print("Message sent: \(jsonString)")
-                    }
-                }
-            }
-        } catch {
-            print("Failed to encode JSON: \(error.localizedDescription)")
-        }
+        
+        sendWebSocketMessage(event)
     }
 
-    // Function to send a generic message to the OpenAI API
-    // You only need to give the type of message that is sent and it will
-    // send that message to the websocket
     func sendMessage(ofType type: String) {
-        guard let task = webSocketTask else {
-            print("Cannot send message. WebSocket is not connected.")
-            return
-        }
-        
-        // Create the dictionary representing the message
         let messageDict: [String: String] = [
             "type": type
         ]
         
-        // Convert the dictionary to JSON data
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: messageDict, options: [])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                // Send the JSON string as a WebSocket message
-                let message = URLSessionWebSocketTask.Message.string(jsonString)
-                task.send(message) { error in
-                    if let error = error {
-                        print("Error sending message: \(error.localizedDescription)")
-                    } else {
-                        print("Message sent: \(jsonString)")
-                    }
-                }
-            }
-        } catch {
-            print("Failed to convert message to JSON: \(error.localizedDescription)")
-        }
+        sendWebSocketMessage(messageDict)
     }
     
     func sendFunctionDoneMessage(message: String, callId: String) {
-        guard let task = webSocketTask else {
-            print("Cannot send message. WebSocket is not connected.")
-            return
-        }
-
-        // Create the dictionary representing the message
         let messageDict: [String: Any] = [
             "type": "conversation.item.create",
             "item": [
@@ -234,38 +201,12 @@ class WebSocketManager: ObservableObject {
                 "output": message
             ]
         ]
-
-        // Convert the dictionary to JSON data
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: messageDict, options: [])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                // Send the JSON string as a WebSocket message
-                let message = URLSessionWebSocketTask.Message.string(jsonString)
-                task.send(message) { error in
-                    if let error = error {
-                        print("Error sending message: \(error.localizedDescription)")
-                    } else {
-                        print("Message sent: \(jsonString)")
-                    }
-                }
-            }
-        } catch {
-            print("Failed to convert message to JSON: \(error.localizedDescription)")
-        }
-
+        
+        sendWebSocketMessage(messageDict)
         sendMessage(ofType: "response.create")
     }
     
-    
-    /// Sends a text message over the WebSocket (very specific type of message)
-    /// Essentially sends 2 messages conversation.item.create and response.create
-    func send(text: String) {
-        guard let task = webSocketTask else {
-            print("Cannot send message. WebSocket is not connected.")
-            return
-        }
-        
-        // Create the JSON payload
+    func sendTextMessage(text: String) {
         let event: [String: Any] = [
             "type": "conversation.item.create",
             "item": [
@@ -279,29 +220,12 @@ class WebSocketManager: ObservableObject {
                 ]
             ]
         ]
-
-        // Convert the JSON object to Data
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: event, options: [])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                // Send the JSON string
-                let message = URLSessionWebSocketTask.Message.string(jsonString)
-                task.send(message) { error in
-                    if let error = error {
-                        print("Error sending message: \(error.localizedDescription)")
-                    } else {
-                        print("Message sent: \(jsonString)")
-                    }
-                }
-            }
-        } catch {
-            print("Failed to encode JSON: \(error.localizedDescription)")
-        }
-
+        
+        sendWebSocketMessage(event)
         sendMessage(ofType: "response.create")
     }
-    
-    /// Sends binary data over the WebSocket
+
+    // Sends binary data over the WebSocket
     func send(data: Data) {
         guard let task = webSocketTask else {
             print("Cannot send data. WebSocket is not connected.")
@@ -358,7 +282,7 @@ class WebSocketManager: ObservableObject {
         }
     }
 
-    /// Starts streaming audio from the microphone
+    // Starts streaming audio from the microphone
     func startMicrophoneStreaming() {
         guard isConnected else {
             print("Cannot start microphone streaming. WebSocket is not connected.")
@@ -368,7 +292,7 @@ class WebSocketManager: ObservableObject {
         microphoneStreamer.startStreaming()
     }
     
-    /// Stops streaming audio from the microphone, and trigger a response
+    // Stops streaming audio from the microphone, and trigger a response
     func stopMicrophoneStreaming() {
         microphoneStreamer.stopStreaming()
 
@@ -377,7 +301,7 @@ class WebSocketManager: ObservableObject {
         sendMessage(ofType: "response.create")
     }
 
-    /// Listens for messages from the WebSocket server
+    // Listens for messages from the WebSocket server
     private func receiveMessages() {
         guard let task = webSocketTask else {
             print("Cannot receive messages. WebSocket is not connected.")
@@ -422,44 +346,26 @@ class WebSocketManager: ObservableObject {
                                         } else {
                                             print("The 'delta' key is missing or is not a String.")
                                         }
-//                                    case "response.audio_transcript.delta":
-//                                        print("Received JSON dictionary: \(dictionary)")
-//                                        // print("Handling audio transcript delta...")
-//                                        if let delta = dictionary["delta"] as? String {
-//                                            // print("Received delta string: \(delta)")
-//                                            DispatchQueue.main.async {
-//                                                self.receivedMessages.append(Message(text: delta, color: .red))
-//                                            }
-//                                        }
                                     case "response.audio_transcript.done":
                                         // End of our voice message back from GPT, so ensure we put linebreak in text view
-//                                        print("Received JSON dictionary: \(dictionary)")
                                         if let transcript = dictionary["transcript"] as? String {
                                             DispatchQueue.main.async {
                                                 self.receivedMessages.append(Message(text: transcript, color: .red))
                                             }
                                         }
-                                        // DispatchQueue.main.async {
-                                        //    self.receivedMessages.append(Message(text: "\n", color: .red))
-                                        // }
                                     case "conversation.item.input_audio_transcription.completed":
-//                                        print("*** Received JSON dictionary: \(dictionary)")
                                         if let transcript = dictionary["transcript"] as? String {
                                             DispatchQueue.main.async {
                                                 self.receivedMessages.append(Message(text: transcript, color: .blue))
                                             }
                                         }
-
-//                                    case "input_audio_buffer.committed":
-//                                        print("Received JSON dictionary: \(dictionary)")
                                     case "session.created":
                                         print("Received JSON dictionary: \(dictionary)")
                                     case "session.updated":
                                         print("Received JSON dictionary: \(dictionary)")
                                     case "response.function_call_arguments.done":
                                         print("Received JSON dictionary: \(dictionary)")
-                                        // Hard code the function to call
-                                        // let strResponse = "The phone number is 415-706-3926."
+
                                         let callId = dictionary["call_id"] as? String
 
                                         if let functionName = dictionary["name"] as? String {

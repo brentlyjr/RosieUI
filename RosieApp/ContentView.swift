@@ -63,7 +63,7 @@ struct ContentView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                 
                 Button("Send") {
-                    webSocketManager.send(text: messageToSend)
+                    webSocketManager.sendTextMessage(text: messageToSend)
                     messageToSend = ""
                 }
                 .disabled(!webSocketManager.isConnected)

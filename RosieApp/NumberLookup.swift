@@ -7,7 +7,7 @@
 
 import Foundation
 
-class NumberLookup {
+class NumberLookup: ClientToolProtocol {
     // Method to look up a phone number for a restaurant
     func lookupPhoneNumber(name: String, city: String, completion: @escaping (String) -> Void) {
         
@@ -81,4 +81,34 @@ class NumberLookup {
         
         task.resume()
     }
+    
+    func registerFunction() {
+        let event: [String: Any] = [
+            "tools": [
+                [
+                    "type": "function",
+                    "name": "restaurant_phone_lookup",
+                    "description": "Looks up the phone number of a restaurant based on its name and city.",
+                    "parameters": [
+                        "type": "object",
+                        "properties": [
+                            "name": [
+                                "type": "string",
+                                "description": "Name of Restaurant"
+                            ],
+                            "city": [
+                                "type": "string",
+                                "description": "City restaurant is in"
+                            ]
+                        ],
+                        "required": ["name", "city"]
+                    ]
+                ]
+            ]
+        ]
+    }
+
+    func parseParameters() { print("parsing parameters") }
+    func invokeFunction() { print("invoking funtion") }
+
 }
