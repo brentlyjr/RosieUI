@@ -6,14 +6,22 @@
 //
 
 import Foundation
+import SwiftUI
+
+struct Message: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+    let color: Color
+}
 
 class WebSocketManager: ObservableObject {
-    @Published var receivedMessages: String = "" // Published messages for SwiftUI views
-    @Published var isConnected: Bool = false       // Connection status for SwiftUI views
+    @Published var receivedMessages: [Message] = [] // Published messages for SwiftUI views
+    @Published var isConnected: Bool = false        // Connection status for SwiftUI views
     
     private var webSocketTask: URLSessionWebSocketTask?
     private let url: URL
 
+    
     // Audio in and out classes
     private let microphoneStreamer: MicrophoneStreamer
     private let audioPlayer = AudioPlayer()
@@ -98,15 +106,23 @@ class WebSocketManager: ObservableObject {
             print("Cannot send message. WebSocket is not connected.")
             return
         }
-
+        let threshold: Decimal = 0.1 // Use Decimal type for better precision control
+        
         // Create the JSON payload
         // Update the session to get an audio transcription from our GPT
         // And pass in our two tools we want to enable
         let event: [String: Any] = [
             "type": "session.update",
             "session": [
+                "instructions" : "You are a helpful AI assistant. You are trying to help make a restaurant reservation. You will need to collect the name and number of the restaurant. You will also need the date, desired time and number of people to make the reservation. Once you have all of this information, you can use your tool make_phone_call to try and make the reservation",
                 "input_audio_transcription": [
                     "model": "whisper-1"
+                ],
+                "turn_detection" :[
+                    "prefix_padding_ms" : 300,
+                    "silence_duration_ms" : 200,
+                    "threshold" : threshold,
+                    "type" : "server_vad"
                 ],
                 "tools": [
                     [
@@ -403,24 +419,31 @@ class WebSocketManager: ObservableObject {
                                         } else {
                                             print("The 'delta' key is missing or is not a String.")
                                         }
-                                    case "response.audio_transcript.delta":
-                                        // print("Handling audio transcript delta...")
-                                        if let delta = dictionary["delta"] as? String {
-                                            // print("Received delta string: \(delta)")
-                                            DispatchQueue.main.async {
-                                                self.receivedMessages += delta // Appends text directly
-                                            }
-                                        }
+//                                    case "response.audio_transcript.delta":
+//                                        print("Received JSON dictionary: \(dictionary)")
+//                                        // print("Handling audio transcript delta...")
+//                                        if let delta = dictionary["delta"] as? String {
+//                                            // print("Received delta string: \(delta)")
+//                                            DispatchQueue.main.async {
+//                                                self.receivedMessages.append(Message(text: delta, color: .red))
+//                                            }
+//                                        }
                                     case "response.audio_transcript.done":
                                         // End of our voice message back from GPT, so ensure we put linebreak in text view
-                                        DispatchQueue.main.async {
-                                            self.receivedMessages += "\n" // Appends text directly
-                                        }
-                                    case "conversation.item.input_audio_transcription.completed":
                                         print("Received JSON dictionary: \(dictionary)")
                                         if let transcript = dictionary["transcript"] as? String {
                                             DispatchQueue.main.async {
-                                                self.receivedMessages += transcript
+                                                self.receivedMessages.append(Message(text: transcript, color: .red))
+                                            }
+                                        }
+                                        // DispatchQueue.main.async {
+                                        //    self.receivedMessages.append(Message(text: "\n", color: .red))
+                                        // }
+                                    case "conversation.item.input_audio_transcription.completed":
+                                        print("*** Received JSON dictionary: \(dictionary)")
+                                        if let transcript = dictionary["transcript"] as? String {
+                                            DispatchQueue.main.async {
+                                                self.receivedMessages.append(Message(text: transcript, color: .blue))
                                             }
                                         }
 

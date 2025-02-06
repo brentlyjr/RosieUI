@@ -38,16 +38,23 @@ struct ContentView: View {
             
             ScrollViewReader { scrollProxy in
                 ScrollView {
-                    Text(webSocketManager.receivedMessages)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .id("Bottom") // Anchor for scrolling
+                    VStack(alignment: .leading) {
+                        ForEach(webSocketManager.receivedMessages) { message in
+                            Text(message.text)
+                                .foregroundColor(message.color)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.bottom, 2)
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity) // Ensure the VStack stretches
+                    .id("Bottom") // Anchor for scrolling
                 }
                 .background(Color(.systemGray6))
                 .cornerRadius(8)
                 .border(Color.gray, width: 1)
                 .frame(height: 300)
-                .onChange(of: webSocketManager.receivedMessages) {
+                .onChange(of: webSocketManager.receivedMessages) { _ in
                     scrollProxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
