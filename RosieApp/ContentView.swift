@@ -54,7 +54,7 @@ struct ContentView: View {
                 .cornerRadius(8)
                 .border(Color.gray, width: 1)
                 .frame(height: 300)
-                .onChange(of: webSocketManager.receivedMessages) { _ in
+                .onChange(of: webSocketManager.receivedMessages) {
                     scrollProxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
