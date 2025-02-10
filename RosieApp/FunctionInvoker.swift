@@ -9,21 +9,32 @@
 import Foundation
 
 class FunctionInvoker {
-    // Map function names to closures that take two String parameters and a completion closure
-    private var functionMap: [String: (String, String, @escaping (String) -> Void) -> Void] = [:]
+    // Map function names to instances of classes that conform to ClientToolProtocol
+    private var functionMap: [String: ClientToolProtocol] = [:]
 
-    // Add a function to the map dynamically
-    func addFunction(_ name: String, function: @escaping (String, String, @escaping (String) -> Void) -> Void) {
-        functionMap[name] = function
+    // Register a class instance in the function map
+    func addFunction<T: ClientToolProtocol>(_ name: String, instance: T) {
+        functionMap[name] = instance
     }
 
-    // Invoke a function by name
-    func invoke(functionName: String, param1: String, param2: String, completion: @escaping (String) -> Void) {
-        if let function = functionMap[functionName] {
-            // Here, we call the function and provide the passed-in completion closure
-            function(param1, param2, completion)
-        } else {
-            print("Error: Function '\(functionName)' not found")
+    // Invoke the function asynchronously
+    func invoke(functionName: String, parameters: [String: Any]) async -> Result<String, Error> {
+        guard let functionInstance = functionMap[functionName] else {
+            return .failure(FunctionError.notFound(functionName))
         }
+
+        do {
+            // Call the method directly on the instance
+            let result = try await functionInstance.invokeFunction(with: parameters)
+            return .success(result)
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    // Custom error type for missing functions
+    enum FunctionError: Error {
+        case notFound(String)
+        case invalidType // Added missing case
     }
 }

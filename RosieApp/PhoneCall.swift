@@ -11,7 +11,7 @@ import Foundation
 class PhoneCall: ClientToolProtocol {
     // Method to call the phone number of a business
     func makePhoneCall(name: String, phone: String, completion: @escaping (String) -> Void) {
-
+        
         // Dummy URL for your REST API
         guard let url = URL(string: "https://api.example.com/phonecall") else {
             completion("Invalid URL")
@@ -79,6 +79,15 @@ class PhoneCall: ClientToolProtocol {
         ]
     }
 
-    func parseParameters() { print("parsing parameters") }
-    func invokeFunction() { print("invoking funtion") }
+    func invokeFunction(with parameters: [String: Any]) async throws -> String
+    {
+        print("Phone Call - invoke function called.")
+        print("Received JSON dictionary: \(parameters)")
+
+        // Example implementation that initiates a phone call based on parameters
+        guard let phoneNumber = parameters["phoneNumber"] as? String else {
+            throw NSError(domain: "InvalidParameters", code: 400, userInfo: nil)
+        }
+        return "Calling \(phoneNumber)..."
+    }
 }

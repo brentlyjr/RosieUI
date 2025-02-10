@@ -8,8 +8,7 @@
 protocol ClientToolProtocol {
     
     func getParameters() -> [String: Any]
-
-    func parseParameters()
-
-    func invokeFunction()
+    
+    // Invokes the function with the given parameters asynchronously.
+    func invokeFunction(with parameters: [String: Any]) async throws -> String
 }

@@ -22,7 +22,7 @@ class NumberLookup: ClientToolProtocol {
             print("Failed to load API key.")
             return
         }
-
+        
         // Construct the API endpoint
         let query = "\(name) restaurant in \(city)"
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
@@ -103,7 +103,15 @@ class NumberLookup: ClientToolProtocol {
             ]
         ]
     }
+    
+    func invokeFunction(with parameters: [String: Any]) async throws -> String {
+        print("NumberLookup - invoke function called.")
+        print("Received JSON dictionary: \(parameters)")
 
-    func parseParameters() { print("parsing parameters") }
-    func invokeFunction() { print("invoking funtion") }
+        // Example implementation that looks up a phone number based on parameters
+        guard let name = parameters["name"] as? String else {
+            throw NSError(domain: "InvalidParameters", code: 400, userInfo: nil)
+        }
+        return "Phone number for \(name): 123-456-7890"
+    }
 }
