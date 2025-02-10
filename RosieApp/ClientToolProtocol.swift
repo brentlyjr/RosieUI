@@ -6,7 +6,10 @@
 //
 
 protocol ClientToolProtocol {
-    func registerFunction()
+    
+    func getParameters() -> [String: Any]
+
     func parseParameters()
+
     func invokeFunction()
 }

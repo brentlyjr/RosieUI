@@ -53,7 +53,7 @@ class WebSocketManager: ObservableObject {
         }
     }
     
-    /// Connects to the WebSocket server
+    // Connects to the WebSocket server
     func connect() {
         guard webSocketTask == nil else {
             print("Already connected to the WebSocket.")
@@ -81,11 +81,15 @@ class WebSocketManager: ObservableObject {
         // Update our session to include an audio transcription
         sendInitialSessionUpdate()
         
+        // Register our two client tools
+        self.installTool(ofType: phoneCall)
+        self.installTool(ofType: numberLookup)
+
         // Start listening for messages
         receiveMessages()
     }
     
-    /// Disconnects from the WebSocket server
+    // Disconnects from the WebSocket server
     func disconnect() {
         guard let task = webSocketTask else {
             print("WebSocket is already disconnected.")
@@ -104,6 +108,9 @@ class WebSocketManager: ObservableObject {
             print("Cannot send message. WebSocket is not connected.")
             return
         }
+
+        // Get the type of message we are sending to print out for debugging later
+        let messageType = messageDict["type"] as? String
         
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: messageDict, options: [])
@@ -111,9 +118,9 @@ class WebSocketManager: ObservableObject {
                 let message = URLSessionWebSocketTask.Message.string(jsonString)
                 task.send(message) { error in
                     if let error = error {
-                        print("Error sending message: \(error.localizedDescription)")
+                        print("Error sending message: \(error)")
                     } else {
-                        print("Message sent: \(jsonString)")
+                        print("Message sent: \(messageType!)")
                     }
                 }
             }
@@ -122,6 +129,7 @@ class WebSocketManager: ObservableObject {
         }
     }
 
+    // Called to setout our chat session and the server settings
     func sendInitialSessionUpdate() {
         let threshold: Decimal = 0.1 // Use Decimal type for better precision control
         
@@ -137,46 +145,24 @@ class WebSocketManager: ObservableObject {
                     "silence_duration_ms" : 200,
                     "threshold" : threshold,
                     "type" : "server_vad"
-                ],
+                ]
+            ]
+        ]
+        
+        sendWebSocketMessage(event)
+    }
+
+    // Call this function when you have a tool you would like to install into our OpenAI session
+    private func installTool(ofType clientProtocol: ClientToolProtocol) {
+        
+        // Call our protocol function to get the parameters this functions requires
+        let parameters = clientProtocol.getParameters()
+        
+        let event: [String: Any] = [
+            "type": "session.update",
+            "session": [
                 "tools": [
-                    [
-                        "type": "function",
-                        "name": "restaurant_phone_lookup",
-                        "description": "Looks up the phone number of a restaurant based on its name and city.",
-                        "parameters": [
-                            "type": "object",
-                            "properties": [
-                                "name": [
-                                    "type": "string",
-                                    "description": "Name of Restaurant"
-                                ],
-                                "city": [
-                                    "type": "string",
-                                    "description": "City restaurant is in"
-                                ]
-                            ],
-                            "required": ["name", "city"]
-                        ]
-                    ],
-                    [
-                        "type": "function",
-                        "name": "make_phone_call",
-                        "description": "Make a phone call to a business with the provided number.",
-                        "parameters": [
-                            "type": "object",
-                            "properties": [
-                                "name": [
-                                    "type": "string",
-                                    "description": "Name of Business"
-                                ],
-                                "phone_number": [
-                                    "type": "string",
-                                    "description": "Telephone Number for business"
-                                ]
-                            ],
-                            "required": ["name", "phone_number"]
-                        ]
-                    ]
+                    parameters
                 ]
             ]
         ]
@@ -192,7 +178,7 @@ class WebSocketManager: ObservableObject {
         sendWebSocketMessage(messageDict)
     }
     
-    func sendFunctionDoneMessage(message: String, callId: String) {
+    private func sendFunctionDoneMessage(message: String, callId: String) {
         let messageDict: [String: Any] = [
             "type": "conversation.item.create",
             "item": [
@@ -225,61 +211,18 @@ class WebSocketManager: ObservableObject {
         sendMessage(ofType: "response.create")
     }
 
-    // Sends binary data over the WebSocket
-    func send(data: Data) {
-        guard let task = webSocketTask else {
-            print("Cannot send data. WebSocket is not connected.")
-            return
-        }
-        
-        let message = URLSessionWebSocketTask.Message.data(data)
-        task.send(message) { error in
-            if let error = error {
-                print("Error sending data: \(error.localizedDescription)")
-            } else {
-                print("Binary data sent.")
-            }
-        }
-    }
-    
     // Send a chunk of audio data from the microphone to OpenAI
-    func sendAudioChunk(data: Data) {
-        guard let task = webSocketTask else {
-            print("Cannot send data. WebSocket is not connected.")
-            return
-        }
-        
+    private func sendAudioChunk(data: Data) {
         // Base64 encode the audio data
         let base64Chunk = data.base64EncodedString()
 
-        // Create the JSON payload
+        // Create the JSON event payload
         let event: [String: Any] = [
             "type": "input_audio_buffer.append",
             "audio": base64Chunk
         ]
         
-        // Convert the JSON object to Data
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: event, options: [])
-            
-            // Create a string message for the WebSocket
-            let messageString = String(data: jsonData, encoding: .utf8) ?? ""
-            
-            // Send the JSON string over the WebSocket
-            let webSocketMessage = URLSessionWebSocketTask.Message.string(messageString)
-            task.send(webSocketMessage) { error in
-                if let error = error {
-                    print("Error sending data: \(error.localizedDescription)")
-                }  else {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                    // let timestamp = formatter.string(from: Date())
-                    // print("[\(timestamp)] Audio chunk sent.")
-                }
-            }
-        } catch {
-            print("Error encoding JSON: \(error.localizedDescription)")
-        }
+        sendWebSocketMessage(event)
     }
 
     // Starts streaming audio from the microphone

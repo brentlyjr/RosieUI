@@ -82,33 +82,28 @@ class NumberLookup: ClientToolProtocol {
         task.resume()
     }
     
-    func registerFunction() {
-        let event: [String: Any] = [
-            "tools": [
-                [
-                    "type": "function",
-                    "name": "restaurant_phone_lookup",
-                    "description": "Looks up the phone number of a restaurant based on its name and city.",
-                    "parameters": [
-                        "type": "object",
-                        "properties": [
-                            "name": [
-                                "type": "string",
-                                "description": "Name of Restaurant"
-                            ],
-                            "city": [
-                                "type": "string",
-                                "description": "City restaurant is in"
-                            ]
-                        ],
-                        "required": ["name", "city"]
+    func getParameters() -> [String: Any] {
+        return [
+            "type": "function",
+            "name": "restaurant_phone_lookup",
+            "description": "Looks up the phone number of a restaurant based on its name and city.",
+            "parameters": [
+                "type": "object",
+                "properties": [
+                    "name": [
+                        "type": "string",
+                        "description": "Name of Restaurant"
+                    ],
+                    "city": [
+                        "type": "string",
+                        "description": "City restaurant is in"
                     ]
-                ]
+                ],
+                "required": ["name", "city"]
             ]
         ]
     }
 
     func parseParameters() { print("parsing parameters") }
     func invokeFunction() { print("invoking funtion") }
-
 }

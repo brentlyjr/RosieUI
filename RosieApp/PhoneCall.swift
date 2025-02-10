@@ -57,7 +57,28 @@ class PhoneCall: ClientToolProtocol {
         task.resume()
     }
     
-    func registerFunction() { print("registering function") }
+    func getParameters() -> [String: Any] {
+        return [
+            "type": "function",
+            "name": "make_phone_call",
+            "description": "Make a phone call to a business with the provided number.",
+            "parameters": [
+                "type": "object",
+                "properties": [
+                    "name": [
+                        "type": "string",
+                        "description": "Name of Business"
+                    ],
+                    "phone_number": [
+                        "type": "string",
+                        "description": "Telephone Number for business"
+                    ]
+                ],
+                "required": ["name", "phone_number"]
+            ]
+        ]
+    }
+
     func parseParameters() { print("parsing parameters") }
     func invokeFunction() { print("invoking funtion") }
 }
