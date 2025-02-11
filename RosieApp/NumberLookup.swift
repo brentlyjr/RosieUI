@@ -107,11 +107,71 @@ class NumberLookup: ClientToolProtocol {
     func invokeFunction(with parameters: [String: Any]) async throws -> String {
         print("NumberLookup - invoke function called.")
         print("Received JSON dictionary: \(parameters)")
-
-        // Example implementation that looks up a phone number based on parameters
-        guard let name = parameters["name"] as? String else {
-            throw NSError(domain: "InvalidParameters", code: 400, userInfo: nil)
+        
+        // Extract and validate the parameters
+        guard let city = parameters["city"] as? String,
+              let restaurantName = parameters["name"] as? String else {
+            throw NSError(domain: "Invalid name or city", code: 400, userInfo: nil)
         }
-        return "Phone number for \(name): 123-456-7890"
+        
+        // Get the API key for the Bing query
+        guard let bingAPIKey = Utilities.loadSecret(forKey: "BING_API_KEY") else {
+            print("Failed to load BING_API_KEY from Secrets.plist")
+            return "Unable to load BING_API_KEY from Secrets.plist"
+        }
+        
+        guard let bingURL = Utilities.loadInfoConfig(forKey: "BING_API_URL") else {
+            print("Failed to load BING_API_URL from Info.plist")
+            return "Unable to load BING_API_URL from Info.plist"
+        }
+        
+        // Construct the API endpoint
+        let query = "\(restaurantName) restaurant in \(city)"
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(bingURL)?q=\(encodedQuery)&mkt=en-US") else {
+            return "Failed to construct the API URL"
+        }
+        
+        // Create the request and add the API key header
+        var request = URLRequest(url: url)
+        request.addValue(bingAPIKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
+        
+        // Perform the API request using async/await
+        let (data, _) = try await URLSession.shared.data(for: request)
+        
+        // Ensure we received data
+        guard !data.isEmpty else {
+            return "Error: No data received from the server."
+        }
+        
+        // Parse the JSON response
+        do {
+            // Convert the data to a JSON dictionary
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+               let places = json["places"] as? [String: Any],
+               let values = places["value"] as? [[String: Any]] {
+                
+                // Look for the matching restaurant entity
+                if let restaurantEntity = values.first(where: { entity in
+                    let entityName = (entity["name"] as? String)?.lowercased() ?? ""
+                    let hints = (entity["entityPresentationInfo"] as? [String: Any])?["entityTypeHints"] as? [String]
+                    return entityName.contains(restaurantName.lowercased()) && hints?.contains("Restaurant") == true
+                }) {
+                    // Try to extract the phone number from either "telephone" or a nested "contact" dictionary
+                    if let phoneNumber = restaurantEntity["telephone"] as? String ??
+                        ((restaurantEntity["contact"] as? [String: Any])?["phone"] as? String) {
+                        return "The phone number for \(restaurantName) in \(city) is \(phoneNumber)."
+                    } else {
+                        return "No phone number found for \(restaurantName) in \(city)."
+                    }
+                } else {
+                    return "No matching restaurant found for \(restaurantName) in \(city)."
+                }
+            } else {
+                return "No results found for \(restaurantName) in \(city)."
+            }
+        } catch {
+            return "Error: Failed to parse server response."
+        }
     }
 }

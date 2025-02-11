@@ -8,7 +8,8 @@
 import Foundation
 
 class Utilities {
-    /// Loads a secret value from a Secrets.plist file.
+
+    // Loads a secret value from a Secrets.plist file.
     static func loadSecret(forKey key: String) -> String? {
         guard let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
               let data = try? Data(contentsOf: url),
@@ -18,5 +19,15 @@ class Utilities {
         }
         
         return secrets[key] as? String
+    }
+    
+    static func loadInfoConfig(forKey key:String) -> String? {
+        guard let url = Bundle.main.url(forResource: "Info", withExtension: "plist"),
+              let data = try? Data(contentsOf: url),
+              let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            print("Failed to load \(key) from Info.plist")
+            return nil
+        }
+        return info[key] as? String
     }
 }

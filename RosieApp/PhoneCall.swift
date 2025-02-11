@@ -84,6 +84,9 @@ class PhoneCall: ClientToolProtocol {
         print("Phone Call - invoke function called.")
         print("Received JSON dictionary: \(parameters)")
 
+        // Check if both 'city' and 'name' are present in the dictionary and have string values
+        if let city = parameters["city"] as? String, let restaurant = parameters["name"] as? String {
+        }
         // Example implementation that initiates a phone call based on parameters
         guard let phoneNumber = parameters["phoneNumber"] as? String else {
             throw NSError(domain: "InvalidParameters", code: 400, userInfo: nil)
