@@ -20,7 +20,7 @@ struct ContentView: View {
             }) {
                 Image(systemName: "mic.fill") // Microphone icon
                     .foregroundColor(.white)
-                    .font(.system(size: 48))
+                    .font(.system(size: 36))
                     .padding()
                     .background(isMicrophoneStreaming ? Color.red : Color.blue) // Change color based on state
                     .clipShape(Circle())
@@ -43,6 +43,7 @@ struct ContentView: View {
                                 .foregroundColor(message.color)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.bottom, 2)
+                                .font(.system(size: 12)) // not .body
                         }
                     }
                     .padding()
@@ -52,7 +53,7 @@ struct ContentView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(8)
                 .border(Color.gray, width: 1)
-                .frame(height: 300)
+                .frame(height: 500)
                 .onChange(of: webSocketManager.receivedMessages) {
                     scrollProxy.scrollTo("Bottom", anchor: .bottom)
                 }
