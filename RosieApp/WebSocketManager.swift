@@ -82,8 +82,8 @@ class WebSocketManager: ObservableObject {
         sendInitialSessionUpdate()
         
         // Register our two client tools
-        self.installTool(ofType: phoneCall)
-        self.installTool(ofType: numberLookup)
+//        self.installTool(ofType: phoneCall)
+//        self.installTool(ofType: numberLookup)
 
         // Start listening for messages
         receiveMessages()
@@ -133,10 +133,14 @@ class WebSocketManager: ObservableObject {
     func sendInitialSessionUpdate() {
         let threshold: Decimal = 0.1 // Use Decimal type for better precision control
         
+        
+        let parameters1 = phoneCall.getParameters()
+        let parameters2 = numberLookup.getParameters()
+
         let event: [String: Any] = [
             "type": "session.update",
             "session": [
-                "instructions" : "You are a helpful AI assistant. You are trying to help make a restaurant reservation...",
+                "instructions" : "You are a helpful AI assistant. You are trying to help make a restaurant reservation. You will have two tools to use. One will allow you to look up the number of a restaurant, based on its name and city. The second tool will make the phone call for you if you call this tool with the correct parameters.",
                 "input_audio_transcription": [
                     "model": "whisper-1"
                 ],
@@ -145,6 +149,10 @@ class WebSocketManager: ObservableObject {
                     "silence_duration_ms" : 200,
                     "threshold" : threshold,
                     "type" : "server_vad"
+                ],
+                "tools": [
+                    parameters1,
+                    parameters2
                 ]
             ]
         ]

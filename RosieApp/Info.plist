@@ -7,7 +7,7 @@
 	<key>FROM_TELEPHONE_NUMBER</key>
 	<string>+14066318974</string>
 	<key>ROSIE_API_URL</key>
-	<string>https://c192-73-170-129-173.ngrok-free.app</string>
+	<string>https://fdce-73-170-129-173.ngrok-free.app/api/makecall</string>
 	<key>BING_API_URL</key>
 	<string>https://api.bing.microsoft.com/v7.0/entities</string>
 </dict>
