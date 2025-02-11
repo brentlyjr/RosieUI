@@ -61,20 +61,28 @@ class PhoneCall: ClientToolProtocol {
         return [
             "type": "function",
             "name": "make_phone_call",
-            "description": "Make a phone call to a business with the provided number.",
+            "description": "Make a reservation at a restaurant for a specific= date and time for the desired party size and name to hold the reservation under.",
             "parameters": [
                 "type": "object",
                 "properties": [
-                    "name": [
+                    "restaurant_name": [
                         "type": "string",
-                        "description": "Name of Business"
+                        "description": "Name of Restaurant"
                     ],
                     "phone_number": [
                         "type": "string",
-                        "description": "Telephone Number for business"
+                        "description": "Telephone Number for restaurant"
+                    ],
+                    "party_size": [
+                        "type": "int",
+                        "description": "Number of people for the reservation"
+                    ],
+                    "reservation_name": [
+                        "type": "string",
+                        "description": "Name that will be used for the reservation"
                     ]
                 ],
-                "required": ["name", "phone_number"]
+                "required": ["name", "phone_number", "party_size", "reservation_name"]
             ]
         ]
     }
@@ -83,6 +91,14 @@ class PhoneCall: ClientToolProtocol {
     {
         print("Phone Call - invoke function called.")
         print("Received JSON dictionary: \(parameters)")
+
+        // Extract and validate the parameters
+        guard let restaurantName = parameters["restaurant_name"] as? String,
+              let telephoneNumber = parameters["phone_number"] as? String,
+              let partySize = parameters["party_size"] as? Int,
+              let reservationName = parameters["reservation_name"] as? String else {
+            throw NSError(domain: "Invalid name or city", code: 400, userInfo: nil)
+        }
 
         // Check if both 'city' and 'name' are present in the dictionary and have string values
         if let city = parameters["city"] as? String, let restaurant = parameters["name"] as? String {
