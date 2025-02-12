@@ -13,7 +13,7 @@
 	<key>CONNECT_TELEPHONE_NUMBER</key>
 	<string>14157063926</string>
 	<key>ROSIE_API_URL</key>
-	<string>https://0fb2-192-184-180-32.ngrok-free.app/</string>
+	<string>https://0fb2-192-184-180-32.ngrok-free.app/api/makecall</string>
 	<key>BING_API_URL</key>
 	<string>https://api.bing.microsoft.com/v7.0/entities</string>
 </dict>

@@ -29,7 +29,7 @@ struct PhoneCallRequest: Codable {
     let CONNECT_NUMBER: String
     let RESERVATION_DATE: String
     let RESERVATION_TIME: String
-    let PARTY_NAME: String
+    let RESERVATION_NAME: String
     let PARTY_SIZE: Int
     let CALLTYPE: String
     let GOAL: String
@@ -103,14 +103,19 @@ class PhoneCall: ClientToolProtocol {
             return "Unable to load FROM_TELEPHONE_NUMBER from Info.plist"
         }
 
+        guard let connectTeleNumber = Utilities.loadInfoConfig(forKey: "CONNECT_TELEPHONE_NUMBER") else {
+            print("Failed to load CONNECT_TELEPHONE_NUMBER from Info.plist")
+            return "Unable to load CONNECT_TELEPHONE_NUMBER from Info.plist"
+        }
+
         // Build up our request body to send into our API call
         let requestBody = PhoneCallRequest(
             TO_NUMBER: restaurantNumber,
             FROM_NUMBER: fromTeleNumber,
-            CONNECT_NUMBER: "+12484345508",
+            CONNECT_NUMBER: connectTeleNumber,
             RESERVATION_DATE: "2025-02-14",
             RESERVATION_TIME: "19:30",
-            PARTY_NAME: partyName,
+            RESERVATION_NAME: partyName,
             PARTY_SIZE: partySize,
             CALLTYPE: "restaurant",
             GOAL: "Make a restaurant reservation at \(restaurantName)",
