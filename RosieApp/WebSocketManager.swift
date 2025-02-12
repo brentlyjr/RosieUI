@@ -288,9 +288,9 @@ class WebSocketManager: ObservableObject {
 //                                    if (!type.contains("delta")) {
 //                                        print("Received message type: \(type), event_id: \(eventId)")
 //                                    }
-                                    if (type.contains("delta")) {
-                                        print("Received message type: \(type), event_id: \(eventId)")
-                                    }
+//                                    if (type.contains("delta")) {
+//                                        print("Received message type: \(type), event_id: \(eventId)")
+//                                    }
 
                                     switch type {
 
@@ -323,7 +323,7 @@ class WebSocketManager: ObservableObject {
                                     case "session.updated":
                                         print("Received JSON dictionary: \(dictionary)")
                                     case "response.function_call_arguments.done":
-                                        print("Received JSON dictionary: \(dictionary)")
+                                        // print("Received JSON dictionary: \(dictionary)")
 
                                         let callId = dictionary["call_id"] as? String
 
@@ -355,8 +355,8 @@ class WebSocketManager: ObservableObject {
                                                 let errorMessage = "The 'arguments' field is missing or is not a valid JSON string."
                                                 print(errorMessage)
                                                 self.sendFunctionDoneMessage(message: errorMessage, callId: callId ?? "")
-                                            }                                        }
-
+                                            }
+                                        }
                                     case "error":
                                         print("Received JSON dictionary: \(dictionary)")
 

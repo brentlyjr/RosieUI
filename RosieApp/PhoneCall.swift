@@ -80,7 +80,7 @@ class PhoneCall: ClientToolProtocol {
         // Extract and validate the parameters
         guard let partyName = parameters["party_name"] as? String,
               let partySize = parameters["party_size"] as? Int,
-              let reservationDate = parameters["reservation_date"] as? String,
+              let reservationDateTime = parameters["reservation_date"] as? String,
               let restaurantNumber = parameters["restaurant_phone_number"] as? String else {
             throw NSError(domain: "Invalid parameters for reservation", code: 400, userInfo: nil)
         }
@@ -108,18 +108,27 @@ class PhoneCall: ClientToolProtocol {
             return "Unable to load CONNECT_TELEPHONE_NUMBER from Info.plist"
         }
 
+        // Break our datetime string up into the two parameters for our function call
+        let components = reservationDateTime.components(separatedBy: "T")
+        guard components.count == 2 else {
+            print("Incorrect date-time format passed in")
+            return "Incorrect date-time format passed in"
+        }
+        let reservationDate = components[0]  // "YYYY-MM-DD"
+        let reservationTime = components[1]  // "HH:MM:SS"
+
         // Build up our request body to send into our API call
         let requestBody = PhoneCallRequest(
             TO_NUMBER: restaurantNumber,
             FROM_NUMBER: fromTeleNumber,
             CONNECT_NUMBER: connectTeleNumber,
-            RESERVATION_DATE: "2025-02-14",
-            RESERVATION_TIME: "19:30",
+            RESERVATION_DATE: reservationDate,
+            RESERVATION_TIME: reservationTime,
             RESERVATION_NAME: partyName,
             PARTY_SIZE: partySize,
             CALLTYPE: "restaurant",
             GOAL: "Make a restaurant reservation at \(restaurantName)",
-            SPECIAL_REQUESTS: "eat outside, please"
+            SPECIAL_REQUESTS: ""
         )
 
         // 3. Encode the request body to JSON data
