@@ -4,6 +4,10 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app requires access to the microphone for audio playback and recording.</string>
+	<key>TEST_MODE</key>
+	<string>YES</string>
+	<key>TEST_PHONE_NUMBER</key>
+	<string>+14157063926</string>
 	<key>FROM_TELEPHONE_NUMBER</key>
 	<string>+14066318974</string>
 	<key>ROSIE_API_URL</key>

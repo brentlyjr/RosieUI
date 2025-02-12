@@ -81,9 +81,13 @@ class WebSocketManager: ObservableObject {
         // Update our session to include an audio transcription
         sendInitialSessionUpdate()
         
+        // I had to back out these changes. If I tried to send 3 updates in fast succession, it would blow away
+        // the first session update with the later ones. So I would never get the phoneCall registered, just the
+        // numberLookup. This may be a bug in API, so will want to revisit this code path.
+
         // Register our two client tools
-//        self.installTool(ofType: phoneCall)
-//        self.installTool(ofType: numberLookup)
+        // self.installTool(ofType: phoneCall)
+        // self.installTool(ofType: numberLookup)
 
         // Start listening for messages
         receiveMessages()
@@ -132,15 +136,18 @@ class WebSocketManager: ObservableObject {
     // Called to setout our chat session and the server settings
     func sendInitialSessionUpdate() {
         let threshold: Decimal = 0.1 // Use Decimal type for better precision control
-        
-        
+        let defaultPrompt = "You are a helpful AI assistant. You are trying to help make a restaurant reservation. You will have two tools to use. One will allow you to look up the number of a restaurant, based on its name and city. The second tool will make the phone call for you if you call this tool with the correct parameters."
+
+        // Had to add the tools here in initial session update as adding later in succession caused issues
         let parameters1 = phoneCall.getParameters()
         let parameters2 = numberLookup.getParameters()
+        
+        let prompt = Utilities.loadPrompt(forKey: "restaurant_reservation") ?? defaultPrompt
 
         let event: [String: Any] = [
             "type": "session.update",
             "session": [
-                "instructions" : "You are a helpful AI assistant. You are trying to help make a restaurant reservation. You will have two tools to use. One will allow you to look up the number of a restaurant, based on its name and city. The second tool will make the phone call for you if you call this tool with the correct parameters.",
+                "instructions" : prompt,
                 "input_audio_transcription": [
                     "model": "whisper-1"
                 ],

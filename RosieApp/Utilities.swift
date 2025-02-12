@@ -8,7 +8,7 @@
 import Foundation
 
 class Utilities {
-
+    
     // Loads a secret value from a Secrets.plist file.
     static func loadSecret(forKey key: String) -> String? {
         guard let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
@@ -29,5 +29,16 @@ class Utilities {
             return nil
         }
         return info[key] as? String
+    }
+    
+    static func loadPrompt(forKey key: String) -> String? {
+        guard let url = Bundle.main.url(forResource: "prompts", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+              let prompts = jsonObject as? [String: String] else {
+            print("Failed to load prompts.json")
+            return nil
+        }
+        return prompts[key]
     }
 }

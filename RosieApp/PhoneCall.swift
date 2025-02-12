@@ -81,15 +81,13 @@ class PhoneCall: ClientToolProtocol {
         guard let partyName = parameters["party_name"] as? String,
               let partySize = parameters["party_size"] as? Int,
               let reservationDate = parameters["reservation_date"] as? String,
-              let restaurantName = parameters["restaurant_name"] as? String,
               let restaurantNumber = parameters["restaurant_phone_number"] as? String else {
             throw NSError(domain: "Invalid parameters for reservation", code: 400, userInfo: nil)
         }
-        
-        // We need to get some of our variables from our configuration to complete the API call
-        // FROM_TELEPHONE_NUMBER
-        // ROSIE_API_URL
 
+        let restaurantName = parameters["restaurant_name"] as? String ?? "Restaurant"
+
+        // We need to get some of our variables from our configuration to complete the API call
         guard let rosieAPI = Utilities.loadInfoConfig(forKey: "ROSIE_API_URL") else {
             print("Failed to load ROSIE_API_URL from Info.plist")
             return "Unable to load ROSIE_API_URL from Info.plist"
@@ -110,7 +108,7 @@ class PhoneCall: ClientToolProtocol {
             TO_NUMBER: restaurantNumber,
             FROM_NUMBER: fromTeleNumber,
             CONNECT_NUMBER: "+12484345508",
-            RESERVATION_DATE: "2025-02-12",
+            RESERVATION_DATE: "2025-02-14",
             RESERVATION_TIME: "19:30",
             PARTY_NAME: partyName,
             PARTY_SIZE: partySize,

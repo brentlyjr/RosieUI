@@ -43,6 +43,19 @@ class NumberLookup: ClientToolProtocol {
             throw NSError(domain: "Invalid name or city", code: 400, userInfo: nil)
         }
         
+        // This is test code so I can control what number is being called
+        // We should see if we are in TEST_MODE = Yes
+        // And if so, we will just return the phone number provided
+        if let testMode = Utilities.loadInfoConfig(forKey: "TEST_MODE"),
+           testMode.uppercased() == "YES",
+           let testPhoneNumber = Utilities.loadInfoConfig(forKey: "TEST_PHONE_NUMBER"),
+           !testPhoneNumber.isEmpty {
+            
+            return "The phone number for \(restaurantName) is \(testPhoneNumber)"
+        }
+
+        // If we pass through, we are not in test mode, so need to lookup the phone number
+
         // Get the API key for the Bing query
         guard let bingAPIKey = Utilities.loadSecret(forKey: "BING_API_KEY") else {
             print("Failed to load BING_API_KEY from Secrets.plist")
