@@ -14,27 +14,38 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
-            // Microphone control button
-            Button(action: {
-                toggleMicrophone()
-            }) {
-                Image(systemName: "mic.fill") // Microphone icon
-                    .foregroundColor(.white)
-                    .font(.system(size: 36))
-                    .padding()
-                    .background(isMicrophoneStreaming ? Color.red : Color.blue) // Change color based on state
-                    .clipShape(Circle())
-                    .shadow(radius: 5)
-                    .overlay(
-                        // Add a glowing effect when active
-                        Circle()
-                            .stroke(isMicrophoneStreaming ? Color.red.opacity(0.7) : Color.clear, lineWidth: 8)
-                            .scaleEffect(isMicrophoneStreaming ? 1.1 : 1.0)
-                            .animation(isMicrophoneStreaming ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default, value: isMicrophoneStreaming)                    )
+            HStack {
+                Image("Rosie")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 80, height: 80)
+                    //.clipShape(Circle())
+                    //.overlay(Circle().stroke(Color.white, lineWidth: 4))
+                    .shadow(radius: 7)
+                
+                Spacer() // Pushes items apart
+                
+                // Microphone control button
+                Button(action: {
+                    toggleMicrophone()
+                }) {
+                    Image(systemName: "mic.fill") // Microphone icon
+                        .foregroundColor(.white)
+                        .font(.system(size: 36))
+                        .padding()
+                        .background(isMicrophoneStreaming ? Color.red : Color.blue) // Change color based on state
+                        .clipShape(Circle())
+                        .shadow(radius: 5)
+                        .overlay(
+                            // Add a glowing effect when active
+                            Circle()
+                                .stroke(isMicrophoneStreaming ? Color.red.opacity(0.7) : Color.clear, lineWidth: 8)
+                                .scaleEffect(isMicrophoneStreaming ? 1.1 : 1.0)
+                                .animation(isMicrophoneStreaming ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default, value: isMicrophoneStreaming)                    )
+                }
+                .padding()
+                .disabled(!webSocketManager.isConnected) // Disable if WebSocket is not connected
             }
-            .padding()
-            .disabled(!webSocketManager.isConnected) // Disable if WebSocket is not connected
-            
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(alignment: .leading) {
@@ -87,6 +98,7 @@ struct ContentView: View {
                 .disabled(!webSocketManager.isConnected)
             }
             .padding()
+
             Text("WebSocket Connection")
                 .font(.headline)
             
