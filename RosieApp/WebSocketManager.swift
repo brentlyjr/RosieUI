@@ -285,15 +285,16 @@ class WebSocketManager: ObservableObject {
                                 
                                 if let type = dictionary["type"] as? String, let eventId = dictionary["event_id"] as? String {
                                     
-                                    if (!type.contains("delta")) {
+//                                    if (!type.contains("delta")) {
+//                                        print("Received message type: \(type), event_id: \(eventId)")
+//                                    }
+                                    if (type.contains("delta")) {
                                         print("Received message type: \(type), event_id: \(eventId)")
                                     }
 
                                     switch type {
 
                                     case "response.audio.delta":
-                                        // print("Handling response audio delta...")
-                                        // print("Received JSON dictionary: \(dictionary)")
                                         if let delta = dictionary["delta"] as? String {
                                             // Switched from playing straight to doing it on main thread via DispatchQueue
                                             DispatchQueue.global(qos: .userInitiated).async {

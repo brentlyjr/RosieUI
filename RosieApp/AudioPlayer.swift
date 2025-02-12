@@ -42,7 +42,7 @@ class AudioPlayer {
         }
     }
     
-    /// Play Base64-encoded PCM16 audio chunk
+    // Play Base64-encoded PCM16 audio chunk
     func playBase64EncodedAudioChunk(_ base64String: String) {
         // Decode Base64 string into raw audio data
         guard let audioData = Data(base64Encoded: base64String) else {
@@ -77,7 +77,7 @@ class AudioPlayer {
         }
     }
     
-    /// Convert raw PCM Float32 data to an AVAudioPCMBuffer
+    // Convert raw PCM Float32 data to an AVAudioPCMBuffer
     private func createPCMBuffer(from data: Data) -> AVAudioPCMBuffer? {
         let frameLength = UInt32(data.count) / 4 // Each PCM Float32 frame is 4 bytes
         guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: frameLength) else {
@@ -101,12 +101,12 @@ class AudioPlayer {
         isPlaying = false
     }
 
-    /// Converts raw PCM16 24kHz mono audio to PCM Float32 16kHz mono audio.
-    /// - Parameters:
-    ///   - pcm16Data: The input raw PCM16 audio data (little-endian, mono, 24kHz).
-    ///   - inputSampleRate: The input sample rate (default is 24kHz).
-    ///   - outputSampleRate: The output sample rate (default is 16kHz).
-    /// - Returns: A `Data` object containing the converted PCM Float32 audio data.
+    // Converts raw PCM16 24kHz mono audio to PCM Float32 16kHz mono audio.
+    // - Parameters:
+    //   - pcm16Data: The input raw PCM16 audio data (little-endian, mono, 24kHz).
+    //   - inputSampleRate: The input sample rate (default is 24kHz).
+    //   - outputSampleRate: The output sample rate (default is 16kHz).
+    // - Returns: A `Data` object containing the converted PCM Float32 audio data.
     func resamplePCM16ToPCMFloat32(
         pcm16Data: Data,
         inputSampleRate: Double,
