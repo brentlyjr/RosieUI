@@ -23,8 +23,7 @@ class WebSocketManager: ObservableObject {
 
     
     // Audio in and out classes
-    private let microphoneStreamer: MicrophoneStreamer
-    private let audioPlayer = AudioPlayer()
+    private let audioStreamManager: AudioStreamManager
 
     // These three classes are for external tools needed by OpenAI
     private let phoneCall = PhoneCall()
@@ -42,10 +41,10 @@ class WebSocketManager: ObservableObject {
         invoker.addFunction("make_phone_call", instance: phoneCall)
         
         // Initialize the microphone streamer
-        self.microphoneStreamer = MicrophoneStreamer()
+        self.audioStreamManager = AudioStreamManager()
         
         // Set up the callback for audio chunks from our microphone
-        self.microphoneStreamer.onAudioChunkReady = { [weak self] audioData in
+        self.audioStreamManager.onAudioChunkReady = { [weak self] audioData in
             guard let self = self else { return }
 
             // Send audio data over the WebSocket
@@ -84,7 +83,6 @@ class WebSocketManager: ObservableObject {
         // I had to back out these changes. If I tried to send 3 updates in fast succession, it would blow away
         // the first session update with the later ones. So I would never get the phoneCall registered, just the
         // numberLookup. This may be a bug in API, so will want to revisit this code path.
-
         // Register our two client tools
         // self.installTool(ofType: phoneCall)
         // self.installTool(ofType: numberLookup)
@@ -124,7 +122,9 @@ class WebSocketManager: ObservableObject {
                     if let error = error {
                         print("Error sending message: \(error)")
                     } else {
-                        print("Message sent: \(messageType!)")
+                        if (messageType != "input_audio_buffer.append") {
+                            print("Message sent: \(messageType!)")
+                        }
                     }
                 }
             }
@@ -247,12 +247,12 @@ class WebSocketManager: ObservableObject {
             return
         }
         
-        microphoneStreamer.startStreaming()
+        audioStreamManager.startMicrophoneStreaming()
     }
     
     // Stops streaming audio from the microphone, and trigger a response
     func stopMicrophoneStreaming() {
-        microphoneStreamer.stopStreaming()
+        audioStreamManager.stopMicrophoneStreaming()
 
         // Once we have done streaming to OpenAI, we need to notify that we need a response
         sendMessage(ofType: "input_audio_buffer.commit")
@@ -273,8 +273,6 @@ class WebSocketManager: ObservableObject {
             case .success(let message):
                 switch message {
                 case .string(let text):
-                    // print("Received text: \(text)")
-                    
                     // Try to parse the JSON text into a dynamic object
                     if let jsonData = text.data(using: .utf8) {
                         do {
@@ -284,10 +282,10 @@ class WebSocketManager: ObservableObject {
                             if let dictionary = jsonObject as? [String: Any] {
                                 
                                 if let type = dictionary["type"] as? String, let eventId = dictionary["event_id"] as? String {
-                                    
-//                                    if (!type.contains("delta")) {
-//                                        print("Received message type: \(type), event_id: \(eventId)")
-//                                    }
+
+                                    if (!type.contains("delta")) {
+                                        print("Received message type: \(type), event_id: \(eventId)")
+                                    }
 //                                    if (type.contains("delta")) {
 //                                        print("Received message type: \(type), event_id: \(eventId)")
 //                                    }
@@ -298,7 +296,7 @@ class WebSocketManager: ObservableObject {
                                         if let delta = dictionary["delta"] as? String {
                                             // Switched from playing straight to doing it on main thread via DispatchQueue
                                             DispatchQueue.global(qos: .userInitiated).async {
-                                                self.audioPlayer.playBase64EncodedAudioChunk(delta)
+                                                self.audioStreamManager.playBase64EncodedAudioChunk(delta)
                                             }
                                             // Old Code, that was working
                                             // audioPlayer.playBase64EncodedAudioChunk(delta)
