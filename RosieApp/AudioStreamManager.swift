@@ -91,13 +91,16 @@ class AudioStreamManager: NSObject {
         let audioSession = AVAudioSession.sharedInstance()
         do {
             // Allow simultaneous playback and recording with Bluetooth and mixing options
-            try audioSession.setCategory(.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers, .defaultToSpeaker])
+            try audioSession.setCategory(.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])    // mixWithOthers,
+
             // Use voiceChat mode for voice-optimized processing (like AEC)
             try audioSession.setMode(.voiceChat)
+
             // Activate the session
             try audioSession.setActive(true)
 
             // Explicitly override output to speaker
+            // TODO: Make this a configurable property from the UI?
             try audioSession.overrideOutputAudioPort(.speaker)
 
             print("Audio session configured successfully.")
@@ -137,6 +140,8 @@ class AudioStreamManager: NSObject {
     }
     
     // Convert the input buffer to a mono, downsampled, Int16 data chunk.
+    // This is the original OpenAI version of the conversion which did it all
+    // manually using a buffer, the newer version uses the native AVAudioConverter
     private func processAudioBufferInt16(_ buffer: AVAudioPCMBuffer) -> Data? {
         guard let inputChannelData = buffer.floatChannelData else {
             print("Input buffer does not contain valid channel data.")
@@ -204,6 +209,8 @@ class AudioStreamManager: NSObject {
         return data
     }
     
+    // This is the newer version of processAudioBufferInt16 that uses the iOS
+    // AVAudioConverter native libraries
     private func processAudioBufferInt16_new(_ buffer: AVAudioPCMBuffer) -> Data? {
         // Create an output format: 16 kHz, mono, PCM Int16.
         guard let outputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16,

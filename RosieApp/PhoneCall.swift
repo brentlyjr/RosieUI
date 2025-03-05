@@ -36,6 +36,12 @@ struct PhoneCallRequest: Codable {
     let SPECIAL_REQUESTS: String
 }
 
+// Define a struct for the expected response from /api/makecall
+struct CallResponse: Codable {
+    let call_sid: String
+    let message: String
+}
+
 class PhoneCall: ClientToolProtocol {
     
     func getParameters() -> [String: Any] {
@@ -149,12 +155,23 @@ class PhoneCall: ClientToolProtocol {
                     return
                 }
                 
-                if let data = data, let responseString = String(data: data, encoding: .utf8) {
-                    print("Response from server: \(responseString)")
-                } else {
+                guard let data = data else {
                     print("No data received from the server.")
+                    return
                 }
-            }
+                
+                do {
+                    let decoder = JSONDecoder()
+                    let callResponse = try decoder.decode(CallResponse.self, from: data)
+
+                    let callSid = callResponse.call_sid
+                    let message = callResponse.message
+                    print("Call SID: \(callSid)")
+                    print("Message: \(message)")
+                    // Use callSid as needed in your code.
+                } catch {
+                    print("Error decoding response: \(error.localizedDescription)")
+                }            }
             // 6. Start the task
             task.resume()
         } catch {
