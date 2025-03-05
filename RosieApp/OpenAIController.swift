@@ -24,6 +24,9 @@ class OpenAIController: ObservableObject {
     private let numberLookup = NumberLookup()
     private let invoker = FunctionInvoker()
     
+    // Callback that will signify when we are executing a phone call
+    var agentExecuting: ((String) -> Void)?
+
     init() {
         // Get our OpenAI URL from the config file
         guard let openAIURL = Utilities.loadInfoConfig(forKey: "OPENAI_URL") else {
@@ -103,7 +106,7 @@ class OpenAIController: ObservableObject {
         isConnected = false
         print("Disconnected from WebSocket.")
     }
-
+    
     // Helper function to send a WebSocket message
     func sendWebSocketMessage(_ messageDict: [String: Any]) {
         guard let task = webSocketTask else {
@@ -286,9 +289,6 @@ class OpenAIController: ObservableObject {
                                     if (!type.contains("delta")) {
                                         print("Received message type: \(type), event_id: \(eventId)")
                                     }
-//                                    if (type.contains("delta")) {
-//                                        print("Received message type: \(type), event_id: \(eventId)")
-//                                    }
 
                                     switch type {
 
@@ -321,7 +321,7 @@ class OpenAIController: ObservableObject {
                                     case "session.updated":
                                         print("Received JSON dictionary: \(dictionary)")
                                     case "response.function_call_arguments.done":
-                                        // print("Received JSON dictionary: \(dictionary)")
+                                        print("Received JSON dictionary: \(dictionary)")
 
                                         let callId = dictionary["call_id"] as? String
 
@@ -336,10 +336,11 @@ class OpenAIController: ObservableObject {
                                                     
                                                     Task {
                                                         let result = await self.invoker.invoke(functionName: functionName, parameters: args)
-                                                        
+                                                        print("Finishsed executing our invoke function.")
                                                         switch result {
                                                         case .success(let message):
                                                             self.sendFunctionDoneMessage(message: message, callId: callId ?? "")
+                                                            self.agentExecuting?(callId ?? "")
                                                         case .failure(let error):
                                                             self.sendFunctionDoneMessage(message: "Error: \(error.localizedDescription)", callId: callId ?? "")
                                                         }

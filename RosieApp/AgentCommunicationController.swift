@@ -14,17 +14,21 @@ class AgentCommunicationController: ObservableObject {
     
     private var webSocketTask: URLSessionWebSocketTask?
     private let apiCall: String = "/api/textstream"
-    
+    private let rosieUrl: String
+
+    init() {
+        // We need to get some of our variables from our configuration to complete the API call
+        guard let rosieUrl = Utilities.loadInfoConfig(forKey: "ROSIE_TOPLEVEL_DOMAIN") else {
+            print("Failed to load ROSIE_API_URL from Info.plist")
+            fatalError("Unable to load ROSIE_API_URL from Info.plist")
+        }
+        self.rosieUrl = rosieUrl
+    }
+
     // Connect to the WebSocket.
     func connect() {
-        // We need to get some of our variables from our configuration to complete the API call
-        guard let rosieUrl = Utilities.loadInfoConfig(forKey: "ROSIE_API_URL") else {
-            print("Failed to load ROSIE_API_URL from Info.plist")
-            return // "Unable to load ROSIE_API_URL from Info.plist"
-        }
-
-        // Replace with your WebSocket URL.
-        let url = URL(string: rosieUrl + apiCall)!
+        // Connect to the Rosie websocket URL for getting the text stream
+        let url = URL(string: "wss://" + rosieUrl + apiCall)!
         webSocketTask = URLSession.shared.webSocketTask(with: url)
         webSocketTask?.resume()
         receiveMessage()
@@ -35,6 +39,10 @@ class AgentCommunicationController: ObservableObject {
         webSocketTask?.cancel(with: .goingAway, reason: nil)
     }
     
+    func startStreamingThread(callSid: String) {
+        print("Getting text thread for call ID: \(callSid)")
+    }
+
     // Continuously receive messages.
     private func receiveMessage() {
         webSocketTask?.receive { [weak self] result in

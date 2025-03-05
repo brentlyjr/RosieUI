@@ -96,14 +96,14 @@ class PhoneCall: ClientToolProtocol {
         let restaurantName = parameters["restaurant_name"] as? String ?? "Restaurant"
 
         // We need to get some of our variables from our configuration to complete the API call
-        guard let rosieAPI = Utilities.loadInfoConfig(forKey: "ROSIE_API_URL") else {
-            print("Failed to load ROSIE_API_URL from Info.plist")
-            return "Unable to load ROSIE_API_URL from Info.plist"
+        guard let rosieDomain = Utilities.loadInfoConfig(forKey: "ROSIE_TOPLEVEL_DOMAIN") else {
+            print("Failed to load ROSIE_TOPLEVEL_DOMAIN from Info.plist")
+            return "Unable to load ROSIE_TOPLEVEL_DOMAIN from Info.plist"
         }
 
-        guard let rosieURL = URL(string: rosieAPI + apiCall) else {
-            print("Unable to construct URL from ROSIE_API_URL")
-            return "Unable to construct URL from ROSIE_API_URL"
+        guard let rosieURL = URL(string: "https://" + rosieDomain + apiCall) else {
+            print("Unable to construct URL for ROSIE_TOPLEVEL_DOMAIN")
+            return "Unable to construct URL for ROSIE_TOPLEVEL_DOMAIN"
         }
 
         guard let fromTeleNumber = Utilities.loadInfoConfig(forKey: "FROM_TELEPHONE_NUMBER") else {

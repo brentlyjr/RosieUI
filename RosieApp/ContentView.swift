@@ -14,7 +14,7 @@ struct Message: Identifiable, Equatable {
 }
 
 struct ContentView: View {
-    @StateObject private var webSocketManager = OpenAIController()
+    @StateObject private var aiController = OpenAIController()
     @StateObject private var agentCommunication = AgentCommunicationController()
     @State private var messageToSend: String = ""
     @State private var isMicrophoneStreaming: Bool = false // Tracks microphone state
@@ -51,14 +51,14 @@ struct ContentView: View {
                                 .animation(isMicrophoneStreaming ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default, value: isMicrophoneStreaming)                    )
                 }
                 .padding()
-                .disabled(!webSocketManager.isConnected) // Disable if WebSocket is not connected
+                .disabled(!aiController.isConnected) // Disable if WebSocket is not connected
             }
             
             // This is the user communcation with the LLM to get details for service job
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(alignment: .leading) {
-                        ForEach(webSocketManager.receivedMessages) { message in
+                        ForEach(aiController.receivedMessages) { message in
                             Text(message.text)
                                 .foregroundColor(message.color)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -74,7 +74,7 @@ struct ContentView: View {
                 .cornerRadius(8)
                 .border(Color.gray, width: 1)
                 .frame(height: 250)
-                .onChange(of: webSocketManager.receivedMessages) {
+                .onChange(of: aiController.receivedMessages) {
                     scrollProxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
@@ -107,10 +107,10 @@ struct ContentView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                 
                 Button("Send") {
-                    webSocketManager.sendTextMessage(text: messageToSend)
+                    aiController.sendTextMessage(text: messageToSend)
                     messageToSend = ""
                 }
-                .disabled(!webSocketManager.isConnected)
+                .disabled(!aiController.isConnected)
             }
             .padding()
             
@@ -118,25 +118,25 @@ struct ContentView: View {
             // be automatic, but doing it to be explicit and see messages
             HStack {
                 Button("Connect") {
-                    webSocketManager.connect()
+                    aiController.connect()
                 }
-                .disabled(webSocketManager.isConnected)
+                .disabled(aiController.isConnected)
                 
                 Button("Disconnect") {
                     // Don't send any more data from the microphone if we are disconnecting
                     if isMicrophoneStreaming {
                         stopMicrophone()
                     }
-                    webSocketManager.disconnect()
+                    aiController.disconnect()
                 }
-                .disabled(!webSocketManager.isConnected)
+                .disabled(!aiController.isConnected)
             }
             .padding()
 
             Text("WebSocket Connection")
                 .font(.headline)
             
-            if webSocketManager.isConnected {
+            if aiController.isConnected {
                 Text("Status: Connected")
                     .foregroundColor(.green)
             } else {
@@ -145,8 +145,25 @@ struct ContentView: View {
             }
         }
         .padding()
+        .onAppear() {
+            setupControllerCommunication()
+        }
     }
     
+    // Add this new method to set up the communication between controllers
+    private func setupControllerCommunication() {
+        // Create a local reference to agentCommunication to avoid capturing self
+        let agentComm = agentCommunication
+        let aiController = aiController
+        
+        // Set up the callback closure for when phone call starts
+        aiController.agentExecuting = { callSid in
+            // Delay the getTextThread call by 5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                agentComm.startStreamingThread(callSid: callSid)
+            }
+        }
+    }
     // Toggles the microphone streaming state
     private func toggleMicrophone() {
         if isMicrophoneStreaming {
@@ -158,8 +175,8 @@ struct ContentView: View {
     
     // Starts the microphone streaming
     private func startMicrophone() {
-        if webSocketManager.isConnected {
-            webSocketManager.startMicrophoneStreaming()
+        if aiController.isConnected {
+            aiController.startMicrophoneStreaming()
             isMicrophoneStreaming = true
             hapticFeedback() // Feedback when starting
         } else {
@@ -169,7 +186,7 @@ struct ContentView: View {
     
     // Stops the microphone streaming
     private func stopMicrophone() {
-        webSocketManager.stopMicrophoneStreaming()
+        aiController.stopMicrophoneStreaming()
         isMicrophoneStreaming = false
         hapticFeedback() // Feedback when starting
     }
