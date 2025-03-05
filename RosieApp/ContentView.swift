@@ -7,8 +7,15 @@
 
 import SwiftUI
 
+struct Message: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+    let color: Color
+}
+
 struct ContentView: View {
-    @StateObject private var webSocketManager = WebSocketManager(urlString: "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17")
+    @StateObject private var webSocketManager = OpenAIController()
+    @StateObject private var agentCommunication = AgentCommunicationController()
     @State private var messageToSend: String = ""
     @State private var isMicrophoneStreaming: Bool = false // Tracks microphone state
     
@@ -46,6 +53,8 @@ struct ContentView: View {
                 .padding()
                 .disabled(!webSocketManager.isConnected) // Disable if WebSocket is not connected
             }
+            
+            // This is the user communcation with the LLM to get details for service job
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(alignment: .leading) {
@@ -64,12 +73,35 @@ struct ContentView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(8)
                 .border(Color.gray, width: 1)
-                .frame(height: 500)
+                .frame(height: 250)
                 .onChange(of: webSocketManager.receivedMessages) {
                     scrollProxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
             
+            // This is the agent communication thread from the server
+            ScrollViewReader { scrollProxy in
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        ForEach(agentCommunication.messages) { message in
+                            Text(message.text)
+                                .foregroundColor(message.color)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.bottom, 2)
+                                .font(.system(size: 12)) // not .body
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity) // Ensure the VStack stretches
+                    .id("Bottom") // Anchor for scrolling
+                }
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                .border(Color.gray, width: 1)
+                .frame(height: 250)
+            }
+
+            // This is the code to send a text message to the server, instead of voice
             HStack {
                 TextField("Message to send", text: $messageToSend)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -82,6 +114,8 @@ struct ContentView: View {
             }
             .padding()
             
+            // This connects and disconnects from the LLM, this eventually should
+            // be automatic, but doing it to be explicit and see messages
             HStack {
                 Button("Connect") {
                     webSocketManager.connect()

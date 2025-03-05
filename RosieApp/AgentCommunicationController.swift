@@ -7,9 +7,10 @@
 
 import Foundation
 
-class AgentCommunicationStream: ObservableObject {
+
+class AgentCommunicationController: ObservableObject {
     // Published array of messages received from the WebSocket.
-    @Published var messages: [String] = []
+    @Published var messages: [Message] = []
     
     private var webSocketTask: URLSessionWebSocketTask?
     private let apiCall: String = "/api/textstream"
@@ -46,13 +47,13 @@ class AgentCommunicationStream: ObservableObject {
                 case .string(let text):
                     // Append the received text to the messages array on the main thread.
                     DispatchQueue.main.async {
-                        self.messages.append(text)
+                        self.messages.append(Message(text: text, color: .blue))
                     }
                 case .data(let data):
                     // If you expect data messages, try converting them to a string.
                     if let text = String(data: data, encoding: .utf8) {
                         DispatchQueue.main.async {
-                            self.messages.append(text)
+                            self.messages.append(Message(text: text, color: .blue))
                         }
                     }
                 @unknown default:

@@ -8,20 +8,14 @@
 import Foundation
 import SwiftUI
 
-struct Message: Identifiable, Equatable {
-    let id = UUID()
-    let text: String
-    let color: Color
-}
-
-class WebSocketManager: ObservableObject {
+class OpenAIController: ObservableObject {
     @Published var receivedMessages: [Message] = [] // Published messages for SwiftUI views
     @Published var isConnected: Bool = false        // Connection status for SwiftUI views
     
     private var webSocketTask: URLSessionWebSocketTask?
-    private let url: URL
+    private let apiKey:String
+    private let openAIURL: URL
 
-    
     // Audio in and out classes
     private let audioStreamManager: AudioStreamManager
 
@@ -30,11 +24,22 @@ class WebSocketManager: ObservableObject {
     private let numberLookup = NumberLookup()
     private let invoker = FunctionInvoker()
     
-    init(urlString: String) {
-        guard let url = URL(string: urlString) else {
+    init() {
+        // Get our OpenAI URL from the config file
+        guard let openAIURL = Utilities.loadInfoConfig(forKey: "OPENAI_URL") else {
+            fatalError("Failed to load URL from Info.plist: OPENAI_URL")
+        }
+        // Convert string to a URL for websocket - uses base URL and API endpoint
+        guard let url = URL(string: openAIURL) else {
             fatalError("Invalid WebSocket URL.")
         }
-        self.url = url
+        self.openAIURL = url
+
+        // Load the OpenAI Key from the config file
+        guard let apiKey = Utilities.loadSecret(forKey: "OPENAI_API_KEY") else {
+            fatalError("Failed to load API key: OPENAI_API_KEY")
+        }
+        self.apiKey = apiKey
 
         // Add our two external tools so we can call them later
         invoker.addFunction("restaurant_phone_lookup", instance: numberLookup)
@@ -59,15 +64,10 @@ class WebSocketManager: ObservableObject {
             return
         }
 
-        guard let apiKey = Utilities.loadSecret(forKey: "OPENAI_API_KEY") else {
-            print("Failed to load API key.")
-            return
-        }
-
         // Create a URLRequest to add headers
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: openAIURL)
 
-        // Add hardcoded headers
+        // Add hardcoded headers required to connect to OpenAI, including our secret key
         request.setValue("Bearer " + apiKey, forHTTPHeaderField: "Authorization")
         request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
         
@@ -75,7 +75,7 @@ class WebSocketManager: ObservableObject {
         webSocketTask = session.webSocketTask(with: request)
         webSocketTask?.resume()
         isConnected = true
-        print("Connected to WebSocket: \(url)")
+        print("Connected to WebSocket: \(openAIURL)")
         
         // Update our session to include an audio transcription
         sendInitialSessionUpdate()
@@ -90,7 +90,7 @@ class WebSocketManager: ObservableObject {
         // Start listening for messages
         receiveMessages()
     }
-    
+
     // Disconnects from the WebSocket server
     func disconnect() {
         guard let task = webSocketTask else {
