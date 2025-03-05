@@ -1,5 +1,5 @@
 //
-//  WebSocketManager.swift
+//  OpenAIController.swift
 //  RosieApp
 //
 //  Created by Brent Cromley on 12/6/24.

@@ -1,5 +1,5 @@
 //
-//  AgentCommunicationStream.swift
+//  AgentCommunicationController.swift
 //  RosieApp
 //
 //  Created by Brent Cromley on 3/4/25.

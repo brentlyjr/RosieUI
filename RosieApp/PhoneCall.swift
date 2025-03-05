@@ -44,6 +44,8 @@ struct CallResponse: Codable {
 
 class PhoneCall: ClientToolProtocol {
     
+    private let apiCall: String = "/api/textstream"
+
     func getParameters() -> [String: Any] {
         return [
             "type": "function",
@@ -99,7 +101,7 @@ class PhoneCall: ClientToolProtocol {
             return "Unable to load ROSIE_API_URL from Info.plist"
         }
 
-        guard let rosieURL = URL(string: rosieAPI) else {
+        guard let rosieURL = URL(string: rosieAPI + apiCall) else {
             print("Unable to construct URL from ROSIE_API_URL")
             return "Unable to construct URL from ROSIE_API_URL"
         }
