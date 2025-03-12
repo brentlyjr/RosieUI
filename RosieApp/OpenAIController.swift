@@ -1,9 +1,11 @@
 //
 //  OpenAIController.swift
-//  RosieApp
+//  RosieAI
 //
 //  Created by Brent Cromley on 12/6/24.
+//  Manages the websocket communication protocol between OpenAI and RosieAI
 //
+
 
 import Foundation
 import SwiftUI
@@ -24,7 +26,7 @@ class OpenAIController: ObservableObject {
     private let numberLookup = NumberLookup()
     private let invoker = FunctionInvoker()
     
-    // Callback that will signify when we are executing a phone call
+    // Callback closure that will call to signify when we are executing a phone call
     var agentExecuting: ((String) -> Void)?
 
     init() {
@@ -286,9 +288,9 @@ class OpenAIController: ObservableObject {
                                 
                                 if let type = dictionary["type"] as? String, let eventId = dictionary["event_id"] as? String {
 
-                                    if (!type.contains("delta")) {
-                                        print("Received message type: \(type), event_id: \(eventId)")
-                                    }
+//                                    if (!type.contains("delta")) {
+//                                        print("Received message type: \(type), event_id: \(eventId)")
+//                                    }
 
                                     switch type {
 
@@ -336,11 +338,18 @@ class OpenAIController: ObservableObject {
                                                     
                                                     Task {
                                                         let result = await self.invoker.invoke(functionName: functionName, parameters: args)
-                                                        print("Finishsed executing our invoke function.")
+                                                        print("Finished executing our invoke function: \(functionName)")
                                                         switch result {
                                                         case .success(let message):
+                                                            print("Sending Function Done message: \(message)")
                                                             self.sendFunctionDoneMessage(message: message, callId: callId ?? "")
-                                                            self.agentExecuting?(callId ?? "")
+
+                                                            // Doh, I don't want to do this when all of them are done, just on the make_phone_call done
+                                                            // TODO: probably a better way to handle this. Maybe my protocol has a call_when_done handler
+                                                            if (functionName == "make_phone_call") {
+                                                                print("Setting agentExecuting ")
+                                                                self.agentExecuting?(callId ?? "")
+                                                            }
                                                         case .failure(let error):
                                                             self.sendFunctionDoneMessage(message: "Error: \(error.localizedDescription)", callId: callId ?? "")
                                                         }

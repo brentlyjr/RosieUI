@@ -1,8 +1,9 @@
 //
 //  ContentView.swift
-//  RosieApp
+//  RosieAI
 //
 //  Created by Brent Cromley on 12/6/24.
+//  Our main view that holds the UI interacting with OpenAI
 //
 
 import SwiftUI
@@ -158,8 +159,8 @@ struct ContentView: View {
         
         // Set up the callback closure for when phone call starts
         aiController.agentExecuting = { callSid in
-            // Delay the getTextThread call by 5 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            // Delay the getTextThread call by .5 seconds - probably not necessary
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 agentComm.startStreamingThread(callSid: callSid)
             }
         }

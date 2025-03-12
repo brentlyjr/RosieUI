@@ -1,8 +1,10 @@
 //
 //  FunctionInvoker.swift
-//  RosieApp
+//  RosieAI
 //
 //  Created by Brent Cromley on 1/15/25.
+//  Since you can't call parameters by name, this is the recommended way around it.
+//  OpenAI gives us a name back of a function to call from their ClientTools
 //
 
 

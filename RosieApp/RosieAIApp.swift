@@ -1,15 +1,16 @@
 //
-//  RosieAppApp.swift
-//  RosieApp
+//  RosieAIApp.swift
+//  RosieAI
 //
 //  Created by Brent Cromley on 12/6/24.
+//  Standard definition main routine for our Swift program
 //
 
 import SwiftUI
 import SwiftData
 
 @main
-struct RosieAppApp: App {
+struct RosieAIApp: App {
 
     var body: some Scene {
         WindowGroup {

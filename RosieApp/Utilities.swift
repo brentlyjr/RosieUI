@@ -1,8 +1,9 @@
 //
 //  Utilities.swift
-//  RosieApp
+//  RosieAI
 //
 //  Created by Brent Cromley on 1/27/25.
+//  Utility functions needed by Rosie
 //
 
 import Foundation

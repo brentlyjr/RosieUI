@@ -1,8 +1,9 @@
 //
 //  ClientToolProtocol.swift
-//  RosieApp
+//  RosieAI
 //
 //  Created by Brent Cromley on 2/6/25.
+//  A protocol definition for a ClientTool as defined by OpenAI
 //
 
 protocol ClientToolProtocol {

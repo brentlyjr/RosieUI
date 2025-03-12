@@ -1,8 +1,9 @@
 //
 //  PhoneCall.swift
-//  RosieApp
+//  RosieAI
 //
 //  Created by Brent Cromley on 1/27/25.
+//  This is the interface to initiate a server call from Rosie to a business
 //
 
 
@@ -44,7 +45,7 @@ struct CallResponse: Codable {
 
 class PhoneCall: ClientToolProtocol {
     
-    private let apiCall: String = "/api/textstream"
+    private let apiCall: String = "/api/makecall"
 
     func getParameters() -> [String: Any] {
         return [
@@ -180,6 +181,6 @@ class PhoneCall: ClientToolProtocol {
             print("Failed to encode request body: \(error.localizedDescription)")
         }
 
-        return "Calling \(restaurantNumber)..."
+        return "PhoneCall: Calling \(restaurantNumber)..."
     }
 }

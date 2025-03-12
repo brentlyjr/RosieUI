@@ -1,8 +1,9 @@
 //
 //  NumberLookup.swift
-//  RosieApp
+//  RosieAI
 //
 //  Created by Brent Cromley on 1/14/25.
+//  Uses the Bing Entity API to lookup the number of a restaurant
 //
 
 import Foundation

@@ -1,8 +1,9 @@
 //
 //  AudioStreamManager.swift
-//  RosieApp
+//  RosieAI
 //
 //  Created by Brent Cromley on 2/27/25.
+//  Manages the microphone and speaker audio streaming
 //
 
 import Foundation
