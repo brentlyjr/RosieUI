@@ -34,9 +34,8 @@ class NumberLookup: ClientToolProtocol {
     }
     
     // Will be invoked when OpenAI requires us to look up a phone number
-    func invokeFunction(with parameters: [String: Any]) async throws -> String {
-        print("NumberLookup - invoke function called.")
-        print("Received JSON dictionary: \(parameters)")
+    func invokeFunction(with parameters: [String: Any]) async throws -> [String: String] {
+        print("Input to NumberLookup -> invokeFunction: \(parameters)")
         
         // Extract and validate the parameters
         guard let city = parameters["city"] as? String,
@@ -52,7 +51,7 @@ class NumberLookup: ClientToolProtocol {
            let testPhoneNumber = Utilities.loadInfoConfig(forKey: "TEST_PHONE_NUMBER"),
            !testPhoneNumber.isEmpty {
             
-            return "The phone number for \(restaurantName) is \(testPhoneNumber)"
+            return ["message": "The phone number for \(restaurantName) is \(testPhoneNumber)"]
         }
 
         // If we pass through, we are not in test mode, so need to lookup the phone number
@@ -60,19 +59,19 @@ class NumberLookup: ClientToolProtocol {
         // Get the API key for the Bing query
         guard let bingAPIKey = Utilities.loadSecret(forKey: "BING_API_KEY") else {
             print("Failed to load BING_API_KEY from Secrets.plist")
-            return "Unable to load BING_API_KEY from Secrets.plist"
+            return ["message": "Unable to load BING_API_KEY from Secrets.plist"]
         }
         
         guard let bingURL = Utilities.loadInfoConfig(forKey: "BING_API_URL") else {
             print("Failed to load BING_API_URL from Info.plist")
-            return "Unable to load BING_API_URL from Info.plist"
+            return ["message": "Unable to load BING_API_URL from Info.plist"]
         }
         
         // Construct the API endpoint
         let query = "\(restaurantName) restaurant in \(city)"
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let url = URL(string: "\(bingURL)?q=\(encodedQuery)&mkt=en-US") else {
-            return "Failed to construct the API URL"
+            return ["message": "Failed to construct the API URL"]
         }
         
         // Create the request and add the API key header
@@ -84,7 +83,7 @@ class NumberLookup: ClientToolProtocol {
         
         // Ensure we received data
         guard !data.isEmpty else {
-            return "Error: No data received from the server."
+            return ["message": "Error: No data received from the server."]
         }
         
         // Parse the JSON response
@@ -103,18 +102,19 @@ class NumberLookup: ClientToolProtocol {
                     // Try to extract the phone number from either "telephone" or a nested "contact" dictionary
                     if let phoneNumber = restaurantEntity["telephone"] as? String ??
                         ((restaurantEntity["contact"] as? [String: Any])?["phone"] as? String) {
-                        return "The phone number for \(restaurantName) in \(city) is \(phoneNumber)."
+                        print("Finished looking up \(restaurantName) in \(city). The phone number is \(phoneNumber).")
+                        return ["message": "The phone number for \(restaurantName) in \(city) is \(phoneNumber)."]
                     } else {
-                        return "No phone number found for \(restaurantName) in \(city)."
+                        return ["message": "No phone number found for \(restaurantName) in \(city)."]
                     }
                 } else {
-                    return "No matching restaurant found for \(restaurantName) in \(city)."
+                    return ["message": "No matching restaurant found for \(restaurantName) in \(city)."]
                 }
             } else {
-                return "No results found for \(restaurantName) in \(city)."
+                return ["message": "No results found for \(restaurantName) in \(city)."]
             }
         } catch {
-            return "Error: Failed to parse server response."
+            return ["message": "Error: Failed to parse server response."]
         }
     }
 }

@@ -33,7 +33,7 @@ class Utilities {
     }
     
     static func loadPrompt(forKey key: String) -> String? {
-        guard let url = Bundle.main.url(forResource: "prompts", withExtension: "json"),
+        guard let url = Bundle.main.url(forResource: "Prompts", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
               let prompts = jsonObject as? [String: String] else {

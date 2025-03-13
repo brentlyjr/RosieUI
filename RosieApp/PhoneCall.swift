@@ -81,10 +81,8 @@ class PhoneCall: ClientToolProtocol {
         ]
     }
 
-    func invokeFunction(with parameters: [String: Any]) async throws -> String
-    {
-        print("Phone Call - invoke function called.")
-        print("Received JSON dictionary: \(parameters)")
+    func invokeFunction(with parameters: [String: Any]) async throws -> [String: String] {
+        print("Input to PhoneCall -> invokeFunction: \(parameters)")
 
         // Extract and validate the parameters
         guard let partyName = parameters["party_name"] as? String,
@@ -96,37 +94,26 @@ class PhoneCall: ClientToolProtocol {
 
         let restaurantName = parameters["restaurant_name"] as? String ?? "Restaurant"
 
-        // We need to get some of our variables from our configuration to complete the API call
-        guard let rosieDomain = Utilities.loadInfoConfig(forKey: "ROSIE_TOPLEVEL_DOMAIN") else {
-            print("Failed to load ROSIE_TOPLEVEL_DOMAIN from Info.plist")
-            return "Unable to load ROSIE_TOPLEVEL_DOMAIN from Info.plist"
+        // Load configuration
+        guard let rosieDomain = Utilities.loadInfoConfig(forKey: "ROSIE_TOPLEVEL_DOMAIN"),
+              let fromTeleNumber = Utilities.loadInfoConfig(forKey: "FROM_TELEPHONE_NUMBER"),
+              let connectTeleNumber = Utilities.loadInfoConfig(forKey: "CONNECT_TELEPHONE_NUMBER") else {
+            throw NSError(domain: "Missing configuration", code: 500, userInfo: nil)
         }
 
         guard let rosieURL = URL(string: "https://" + rosieDomain + apiCall) else {
-            print("Unable to construct URL for ROSIE_TOPLEVEL_DOMAIN")
-            return "Unable to construct URL for ROSIE_TOPLEVEL_DOMAIN"
+            throw NSError(domain: "Invalid URL", code: 500, userInfo: nil)
         }
 
-        guard let fromTeleNumber = Utilities.loadInfoConfig(forKey: "FROM_TELEPHONE_NUMBER") else {
-            print("Failed to load FROM_TELEPHONE_NUMBER from Info.plist")
-            return "Unable to load FROM_TELEPHONE_NUMBER from Info.plist"
-        }
-
-        guard let connectTeleNumber = Utilities.loadInfoConfig(forKey: "CONNECT_TELEPHONE_NUMBER") else {
-            print("Failed to load CONNECT_TELEPHONE_NUMBER from Info.plist")
-            return "Unable to load CONNECT_TELEPHONE_NUMBER from Info.plist"
-        }
-
-        // Break our datetime string up into the two parameters for our function call
+        // Break up date-time
         let components = reservationDateTime.components(separatedBy: "T")
         guard components.count == 2 else {
-            print("Incorrect date-time format passed in")
-            return "Incorrect date-time format passed in"
+            throw NSError(domain: "Incorrect date-time format", code: 400, userInfo: nil)
         }
-        let reservationDate = components[0]  // "YYYY-MM-DD"
-        let reservationTime = components[1]  // "HH:MM:SS"
+        let reservationDate = components[0]
+        let reservationTime = components[1]
 
-        // Build up our request body to send into our API call
+        // Build request body
         let requestBody = PhoneCallRequest(
             TO_NUMBER: restaurantNumber,
             FROM_NUMBER: fromTeleNumber,
@@ -140,47 +127,33 @@ class PhoneCall: ClientToolProtocol {
             SPECIAL_REQUESTS: ""
         )
 
-        // 3. Encode the request body to JSON data
         let encoder = JSONEncoder()
+        let jsonData = try encoder.encode(requestBody)
+
+        var request = URLRequest(url: rosieURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = jsonData
+
         do {
-            let jsonData = try encoder.encode(requestBody)
-            
-            // 4. Create and configure the URLRequest
-            var request = URLRequest(url: rosieURL)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = jsonData
-            
-            // 5. Create a URLSession data task to send the request
-            let task = URLSession.shared.dataTask(with: request) { data, response, error in
-                if let error = error {
-                    print("Error making POST request: \(error.localizedDescription)")
-                    return
-                }
-                
-                guard let data = data else {
-                    print("No data received from the server.")
-                    return
-                }
-                
-                do {
-                    let decoder = JSONDecoder()
-                    let callResponse = try decoder.decode(CallResponse.self, from: data)
+            let (data, response) = try await URLSession.shared.data(for: request)
 
-                    let callSid = callResponse.call_sid
-                    let message = callResponse.message
-                    print("Call SID: \(callSid)")
-                    print("Message: \(message)")
-                    // Use callSid as needed in your code.
-                } catch {
-                    print("Error decoding response: \(error.localizedDescription)")
-                }            }
-            // 6. Start the task
-            task.resume()
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                throw NSError(domain: "Server returned an error", code: 500, userInfo: nil)
+            }
+
+            let decoder = JSONDecoder()
+            let callResponse = try decoder.decode(CallResponse.self, from: data)
+
+            print("Finished making call: \(callResponse.message), callSid: \(callResponse.call_sid)")
+
+            return [
+                "message": callResponse.message,
+                "callSid": callResponse.call_sid
+            ]
         } catch {
-            print("Failed to encode request body: \(error.localizedDescription)")
+            print("Error making POST request: \(error.localizedDescription)")
+            throw error
         }
-
-        return "PhoneCall: Calling \(restaurantNumber)..."
     }
 }

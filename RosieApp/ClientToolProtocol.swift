@@ -8,8 +8,9 @@
 
 protocol ClientToolProtocol {
     
+    // This returns the parameters that define the ClientTool
     func getParameters() -> [String: Any]
     
     // Invokes the function with the given parameters asynchronously.
-    func invokeFunction(with parameters: [String: Any]) async throws -> String
+    func invokeFunction(with parameters: [String: Any]) async throws -> [String: String]
 }

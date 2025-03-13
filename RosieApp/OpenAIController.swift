@@ -340,16 +340,29 @@ class OpenAIController: ObservableObject {
                                                         let result = await self.invoker.invoke(functionName: functionName, parameters: args)
                                                         print("Finished executing our invoke function: \(functionName)")
                                                         switch result {
-                                                        case .success(let message):
-                                                            print("Sending Function Done message: \(message)")
-                                                            self.sendFunctionDoneMessage(message: message, callId: callId ?? "")
+                                                        case .success(let response):
+                                                            // Once our function has returned, we SHOULD have a dictionary back that contains
+                                                            // at a minimum, our message back to OpenAI. We need to tell OpenAI that our
+                                                            // function is done completing by sending the
+                                                            //    conversation.item.create
+                                                            //    function_call_output
+                                                            
+                                                            if let msg = response["message"] {
+                                                                print("Sending Function Done message: \(msg)")
+                                                                self.sendFunctionDoneMessage(message: msg, callId: callId ?? "")
 
-                                                            // Doh, I don't want to do this when all of them are done, just on the make_phone_call done
-                                                            // TODO: probably a better way to handle this. Maybe my protocol has a call_when_done handler
-                                                            if (functionName == "make_phone_call") {
-                                                                print("Setting agentExecuting ")
-                                                                self.agentExecuting?(callId ?? "")
+                                                                // Doh, I don't want to do this when all of them are done, just on the make_phone_call done
+                                                                // TODO: probably a better way to handle this. Maybe my protocol has a call_when_done handler
+                                                                if (functionName == "make_phone_call") {
+                                                                    if let callSid = response["callSid"] {
+                                                                        print("Setting agentExecuting with callSid: \(callSid)")
+                                                                        self.agentExecuting?(callSid)
+                                                                    } else {
+                                                                        print("ERROR: No callSid associated with function: \(functionName)")
+                                                                    }
+                                                                }
                                                             }
+
                                                         case .failure(let error):
                                                             self.sendFunctionDoneMessage(message: "Error: \(error.localizedDescription)", callId: callId ?? "")
                                                         }

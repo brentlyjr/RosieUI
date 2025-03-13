@@ -20,7 +20,7 @@ class FunctionInvoker {
     }
 
     // Invoke the function asynchronously
-    func invoke(functionName: String, parameters: [String: Any]) async -> Result<String, Error> {
+    func invoke(functionName: String, parameters: [String: Any]) async -> Result<[String: String], Error> {
         guard let functionInstance = functionMap[functionName] else {
             return .failure(FunctionError.notFound(functionName))
         }
