@@ -24,7 +24,8 @@ class AudioStreamManager: NSObject {
     private var inputFormat: AVAudioFormat!
     private var micOutputFormat: AVAudioFormat!
     private var audioConverter: AVAudioConverter?
-    private let streamingBufferSize: AVAudioFrameCount = 1024 // frames per chunk
+    private let streamingBufferSize: AVAudioFrameCount = 2048 // frames per chunk
+    private let minimumAudioDataSize = 1024 // Minimum size for valid audio data
     private var isMicrophoneStreaming: Bool = false
     
     // A property to keep track of the number of pending playback buffers.
@@ -92,7 +93,7 @@ class AudioStreamManager: NSObject {
         let audioSession = AVAudioSession.sharedInstance()
         do {
             // Allow simultaneous playback and recording with Bluetooth and mixing options
-            try audioSession.setCategory(.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])    // mixWithOthers,
+            try audioSession.setCategory(.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])
 
             // Use voiceChat mode for voice-optimized processing (like AEC)
             try audioSession.setMode(.voiceChat)
@@ -101,10 +102,22 @@ class AudioStreamManager: NSObject {
             try audioSession.setActive(true)
 
             // Explicitly override output to speaker
-            // TODO: Make this a configurable property from the UI?
             try audioSession.overrideOutputAudioPort(.speaker)
 
+            // Set preferred sample rate and I/O buffer duration
+            try audioSession.setPreferredSampleRate(16000)
+            try audioSession.setPreferredIOBufferDuration(0.005) // 5ms buffer for lower latency
+            
+            // Log the hardware sample rate
+            let hardwareSampleRate = audioSession.sampleRate
+            print("Hardware sample rate: \(hardwareSampleRate)")
+            if hardwareSampleRate != 16000 {
+                print("Warning: Hardware sample rate differs from preferred rate")
+            }
+
             print("Audio session configured successfully.")
+            print("Current sample rate: \(audioSession.sampleRate)")
+            print("Current I/O buffer duration: \(audioSession.ioBufferDuration)")
         } catch {
             print("Failed to configure audio session: \(error.localizedDescription)")
         }
@@ -119,7 +132,11 @@ class AudioStreamManager: NSObject {
         }
 
         let inputNode = audioEngine.inputNode
-        inputNode.installTap(onBus: 0, bufferSize: streamingBufferSize, format: inputFormat) { [weak self] buffer, _ in
+        // Use the hardware's native input format instead of our predefined format
+        let hardwareFormat = inputNode.inputFormat(forBus: 0)
+        print("Using hardware input format: \(hardwareFormat)")
+        
+        inputNode.installTap(onBus: 0, bufferSize: streamingBufferSize, format: hardwareFormat) { [weak self] buffer, _ in
             guard let self = self else { return }
             if let processedData = self.processAudioBufferInt16_new(buffer) {
                 self.onAudioChunkReady?(processedData)
@@ -140,76 +157,7 @@ class AudioStreamManager: NSObject {
         print("Microphone streaming stopped.")
     }
     
-    // Convert the input buffer to a mono, downsampled, Int16 data chunk.
-    // This is the original OpenAI version of the conversion which did it all
-    // manually using a buffer, the newer version uses the native AVAudioConverter
-    private func processAudioBufferInt16(_ buffer: AVAudioPCMBuffer) -> Data? {
-        guard let inputChannelData = buffer.floatChannelData else {
-            print("Input buffer does not contain valid channel data.")
-            return nil
-        }
-        
-        let inputFrameLength = Int(buffer.frameLength)
-        let inputSampleRate = buffer.format.sampleRate
-        let inputChannels = Int(buffer.format.channelCount)
-        
-        // Mix stereo to mono (if necessary) or copy mono channel
-        let monoSamples = [Float](unsafeUninitializedCapacity: inputFrameLength) { bufferPtr, count in
-            if inputChannels == 2 {
-                let leftChannel = inputChannelData[0]
-                let rightChannel = inputChannelData[1]
-                for i in 0..<inputFrameLength {
-                    bufferPtr[i] = (leftChannel[i] + rightChannel[i]) / 2.0
-                }
-            } else if inputChannels == 1 {
-                let channel = inputChannelData[0]
-                for i in 0..<inputFrameLength {
-                    bufferPtr[i] = channel[i]
-                }
-            }
-            count = inputFrameLength
-        }
-        
-        // Downsample from the input sample rate to 16kHz.
-        let targetSampleRate: Float = 16000.0
-        let downsampleFactor = Float(inputSampleRate) / targetSampleRate
-        let downsampledFrameLength = Int(Float(monoSamples.count) / downsampleFactor)
-        
-        let downsampledSamples = [Float](unsafeUninitializedCapacity: downsampledFrameLength) { bufferPtr, count in
-            var outputIndex = 0
-            var accumulator: Float = 0.0
-            var accumulatorCount: Int = 0
-            
-            for i in monoSamples.indices {
-                let targetIndex = Int(Float(i) / downsampleFactor)
-                if targetIndex > outputIndex {
-                    bufferPtr[outputIndex] = accumulator / Float(accumulatorCount)
-                    outputIndex += 1
-                    accumulator = 0.0
-                    accumulatorCount = 0
-                }
-                accumulator += monoSamples[i]
-                accumulatorCount += 1
-            }
-            
-            if accumulatorCount > 0 {
-                bufferPtr[outputIndex] = accumulator / Float(accumulatorCount)
-                outputIndex += 1
-            }
-            count = outputIndex
-        }
-        
-        // Convert the downsampled Float samples to Int16
-        var int16Data = [Int16](repeating: 0, count: downsampledSamples.count)
-        for i in 0..<downsampledSamples.count {
-            let sample = downsampledSamples[i]
-            int16Data[i] = Int16(max(-32768, min(32767, sample * 32767.0)))
-        }
-        
-        let data = Data(bytes: int16Data, count: int16Data.count * MemoryLayout<Int16>.size)
-        return data
-    }
-    
+
     // This is the newer version of processAudioBufferInt16 that uses the iOS
     // AVAudioConverter native libraries
     private func processAudioBufferInt16_new(_ buffer: AVAudioPCMBuffer) -> Data? {
@@ -222,7 +170,11 @@ class AudioStreamManager: NSObject {
             return nil
         }
         
-        // Create an AVAudioConverter to convert from the buffer’s format to our desired output.
+//        print("Input buffer format: \(buffer.format)")
+//        print("Target output format: \(outputFormat)")
+//        print("Input buffer frame length: \(buffer.frameLength)")
+        
+        // Create an AVAudioConverter to convert from the buffer's format to our desired output.
         guard let converter = AVAudioConverter(from: buffer.format, to: outputFormat) else {
             print("Failed to create AVAudioConverter.")
             return nil
@@ -243,15 +195,17 @@ class AudioStreamManager: NSObject {
         }
         
         var error: NSError?
-        converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
+        let status = converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
         
         if let error = error {
             print("AVAudioConverter error: \(error.localizedDescription)")
             return nil
         }
         
+//        print("Conversion status: \(status)")
+//        print("Output buffer frame length: \(outputBuffer.frameLength)")
+        
         // Extract raw audio data from the converted output buffer.
-        // Since we requested an interleaved format, we extract the data from the buffer's audioBufferList.
         let audioBuffer = outputBuffer.audioBufferList.pointee.mBuffers
         guard let mData = audioBuffer.mData else {
             print("No audio data available in output buffer.")
@@ -259,6 +213,34 @@ class AudioStreamManager: NSObject {
         }
         
         let data = Data(bytes: mData, count: Int(audioBuffer.mDataByteSize))
+//        print("Processed audio data size: \(data.count) bytes")
+        
+        // Check if we have enough audio data
+        if data.count < minimumAudioDataSize {
+            print("Warning: Audio data size below minimum threshold")
+            return nil
+        }
+        
+        // Log the first few samples to check for potential issues
+        if data.count >= 4 {
+            let samples = data.prefix(4).map { Int16(bitPattern: UInt16($0)) }
+//            print("First 4 samples: \(samples)")
+            
+            // Check if the audio data is all zeros or contains invalid values
+            let allZeros = samples.allSatisfy { $0 == 0 }
+            let hasInvalidValues = samples.contains { abs($0) > 32767 }
+            
+            if allZeros {
+                print("Warning: Audio data contains all zeros")
+                return nil
+            }
+            
+            if hasInvalidValues {
+                print("Warning: Audio data contains invalid values")
+                return nil
+            }
+        }
+        
         return data
     }
 

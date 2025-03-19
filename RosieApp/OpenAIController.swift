@@ -141,7 +141,7 @@ class OpenAIController: ObservableObject {
     // Called to setout our chat session and the server settings
     func sendInitialSessionUpdate() {
         let threshold: Decimal = 0.1 // Use Decimal type for better precision control
-        let defaultPrompt = "You are a helpful AI assistant. You are trying to help make a restaurant reservation. You will have two tools to use. One will allow you to look up the number of a restaurant, based on its name and city. The second tool will make the phone call for you if you call this tool with the correct parameters."
+        let defaultPrompt = "You are a helpful AI assistant. You are trying to help make a restaurant reservation. You will have two tools to use. One will allow you to look up the number of a restaurant, based on its name and city. The second tool will make the phone call for you if you call this tool with the correct parameters. Can you always tell me what language you heard before responding?"
 
         // Had to add the tools here in initial session update as adding later in succession caused issues
         let parameters1 = phoneCall.getParameters()
@@ -154,7 +154,9 @@ class OpenAIController: ObservableObject {
             "session": [
                 "instructions" : prompt,
                 "input_audio_transcription": [
-                    "model": "whisper-1"
+                    "model": "whisper-1",
+                    "language": "en",
+                    "prompt": "This is an English conversation. Please transcribe and respond in English only."
                 ],
                 "turn_detection" :[
                     "prefix_padding_ms" : 300,
@@ -235,6 +237,7 @@ class OpenAIController: ObservableObject {
     private func sendAudioChunk(data: Data) {
         // Base64 encode the audio data
         let base64Chunk = data.base64EncodedString()
+ //       print("Sending audio chunk of size: \(data.count) bytes")
 
         // Create the JSON event payload
         let event: [String: Any] = [
@@ -308,12 +311,14 @@ class OpenAIController: ObservableObject {
                                     case "response.audio_transcript.done":
                                         // End of our voice message back from GPT, so ensure we put linebreak in text view
                                         if let transcript = dictionary["transcript"] as? String {
+                                            print("GPT Response Transcription: \(transcript)")
                                             DispatchQueue.main.async {
                                                 self.receivedMessages.append(Message(text: transcript, color: .red))
                                             }
                                         }
                                     case "conversation.item.input_audio_transcription.completed":
                                         if let transcript = dictionary["transcript"] as? String {
+                                            print("Audio Transcription Result: \(transcript)")
                                             DispatchQueue.main.async {
                                                 self.receivedMessages.append(Message(text: transcript, color: .blue))
                                             }
