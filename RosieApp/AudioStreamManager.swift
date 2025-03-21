@@ -24,7 +24,7 @@ class AudioStreamManager: NSObject {
     private var inputFormat: AVAudioFormat!
     private var micOutputFormat: AVAudioFormat!
     private var audioConverter: AVAudioConverter?
-    private let streamingBufferSize: AVAudioFrameCount = 2048 // frames per chunk
+    private let streamingBufferSize: AVAudioFrameCount = 2400  // Match input frame size
     private let minimumAudioDataSize = 1024 // Minimum size for valid audio data
     private var isMicrophoneStreaming: Bool = false
     
@@ -34,6 +34,14 @@ class AudioStreamManager: NSObject {
     // Callback for processed microphone data (as Int16)
     var onAudioChunkReady: ((Data) -> Void)?
     
+    // Add these properties at the top with other properties
+    private var audioFileWriter: AVAudioFile?
+    private let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    private var recordingURL: URL?
+
+    // 3. Add property to store previous chunk end for overlap handling
+    private var previousChunkEnd: [Int16]?
+
     // MARK: - Initialization
     
     override init() {
@@ -85,6 +93,9 @@ class AudioStreamManager: NSObject {
         } catch {
             print("Failed to start audio engine: \(error.localizedDescription)")
         }
+
+        // Add this method after init()
+        setupAudioFileWriter()
     }
     
     // MARK: - Audio Session Configuration
@@ -97,29 +108,25 @@ class AudioStreamManager: NSObject {
 
             // Use voiceChat mode for voice-optimized processing (like AEC)
             try audioSession.setMode(.voiceChat)
-
-            // Activate the session
-            try audioSession.setActive(true)
-
-            // Explicitly override output to speaker
-            try audioSession.overrideOutputAudioPort(.speaker)
-
-            // Set preferred sample rate and I/O buffer duration
-            try audioSession.setPreferredSampleRate(16000)
-            try audioSession.setPreferredIOBufferDuration(0.005) // 5ms buffer for lower latency
             
-            // Log the hardware sample rate
-            let hardwareSampleRate = audioSession.sampleRate
-            print("Hardware sample rate: \(hardwareSampleRate)")
-            if hardwareSampleRate != 16000 {
-                print("Warning: Hardware sample rate differs from preferred rate")
-            }
-
-            print("Audio session configured successfully.")
-            print("Current sample rate: \(audioSession.sampleRate)")
-            print("Current I/O buffer duration: \(audioSession.ioBufferDuration)")
+            // Match the hardware sample rate
+            try audioSession.setPreferredSampleRate(24000)
+            
+            // Increase buffer duration slightly
+            try audioSession.setPreferredIOBufferDuration(0.010)  // 10ms buffer
+            
+            try audioSession.setActive(true)
+            try audioSession.overrideOutputAudioPort(.speaker)
+            
+            print("""
+            Audio Session Configuration:
+            Sample Rate: \(audioSession.sampleRate)
+            IO Buffer Duration: \(audioSession.ioBufferDuration)
+            Input Latency: \(audioSession.inputLatency)
+            Output Latency: \(audioSession.outputLatency)
+            """)
         } catch {
-            print("Failed to configure audio session: \(error.localizedDescription)")
+            print("Failed to configure audio session: \(error)")
         }
     }
     
@@ -154,25 +161,25 @@ class AudioStreamManager: NSObject {
 
         audioEngine.inputNode.removeTap(onBus: 0)
         isMicrophoneStreaming = false
-        print("Microphone streaming stopped.")
+        finalizeRecording()
+        print("Microphone streaming stopped and recording finalized.")
     }
     
 
-    // This is the newer version of processAudioBufferInt16 that uses the iOS
-    // AVAudioConverter native libraries
+    // 2. Modify processAudioBufferInt16_new to handle the full buffer
     private func processAudioBufferInt16_new(_ buffer: AVAudioPCMBuffer) -> Data? {
-        // Create an output format: 16 kHz, mono, PCM Int16.
-        guard let outputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16,
-                                               sampleRate: 16000,
-                                               channels: 1,
-                                               interleaved: true) else {
+        // Log input buffer details
+        // print("Input buffer: format=\(buffer.format), frames=\(buffer.frameLength), capacity=\(buffer.frameCapacity)")
+        
+        guard let outputFormat = AVAudioFormat(
+            commonFormat: .pcmFormatInt16,
+            sampleRate: 24000,  // Match input sample rate
+            channels: AVAudioChannelCount(1),
+            interleaved: true
+        ) else {
             print("Failed to create output format.")
             return nil
         }
-        
-//        print("Input buffer format: \(buffer.format)")
-//        print("Target output format: \(outputFormat)")
-//        print("Input buffer frame length: \(buffer.frameLength)")
         
         // Create an AVAudioConverter to convert from the buffer's format to our desired output.
         guard let converter = AVAudioConverter(from: buffer.format, to: outputFormat) else {
@@ -197,13 +204,13 @@ class AudioStreamManager: NSObject {
         var error: NSError?
         let status = converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
         
+        // Log conversion details
+        // print("Conversion: status=\(status), outputFrames=\(outputBuffer.frameLength), error=\(error?.localizedDescription ?? "none")")
+        
         if let error = error {
             print("AVAudioConverter error: \(error.localizedDescription)")
             return nil
         }
-        
-//        print("Conversion status: \(status)")
-//        print("Output buffer frame length: \(outputBuffer.frameLength)")
         
         // Extract raw audio data from the converted output buffer.
         let audioBuffer = outputBuffer.audioBufferList.pointee.mBuffers
@@ -213,7 +220,9 @@ class AudioStreamManager: NSObject {
         }
         
         let data = Data(bytes: mData, count: Int(audioBuffer.mDataByteSize))
-//        print("Processed audio data size: \(data.count) bytes")
+        
+        // Log data size
+        // print("Audio chunk size: \(data.count) bytes")
         
         // Check if we have enough audio data
         if data.count < minimumAudioDataSize {
@@ -221,25 +230,8 @@ class AudioStreamManager: NSObject {
             return nil
         }
         
-        // Log the first few samples to check for potential issues
-        if data.count >= 4 {
-            let samples = data.prefix(4).map { Int16(bitPattern: UInt16($0)) }
-//            print("First 4 samples: \(samples)")
-            
-            // Check if the audio data is all zeros or contains invalid values
-            let allZeros = samples.allSatisfy { $0 == 0 }
-            let hasInvalidValues = samples.contains { abs($0) > 32767 }
-            
-            if allZeros {
-                print("Warning: Audio data contains all zeros")
-                return nil
-            }
-            
-            if hasInvalidValues {
-                print("Warning: Audio data contains invalid values")
-                return nil
-            }
-        }
+        // Before returning the data, write it to our file
+        writeAudioChunkToFile(data)
         
         return data
     }
@@ -288,19 +280,15 @@ class AudioStreamManager: NSObject {
         
         // Increment the pending buffer count.
         pendingPlaybackBuffers += 1
-
-        // Schedule the buffer for playback with a completion handler.
-        // The completion handler will re-enable the microphone once playback is finished.
-        audioPlayerNode.scheduleBuffer(buffer, completionHandler: { [weak self] in
+        
+        audioPlayerNode.scheduleBuffer(buffer) { [weak self] in
             DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.pendingPlaybackBuffers -= 1
-                // If no more buffers are pending, re-enable the microphone.
-                if self.pendingPlaybackBuffers == 0 {
-                    self.startMicrophoneStreaming()
+                self?.pendingPlaybackBuffers -= 1
+                if self?.pendingPlaybackBuffers == 0 {
+                    self?.startMicrophoneStreaming()
                 }
             }
-        })
+        }
 
         // Start playback if not already running.
         if !isPlaying {
@@ -333,39 +321,162 @@ class AudioStreamManager: NSObject {
         outputSampleRate: Double,
         channels: Int = 1
     ) -> Data? {
-        let resampleRatio = outputSampleRate / inputSampleRate
-        
-        // Convert PCM16 data to an array of Int16 values.
-        let sampleCount = pcm16Data.count / MemoryLayout<Int16>.size
-        let inputSamples = pcm16Data.withUnsafeBytes { buffer in
-            Array(UnsafeBufferPointer<Int16>(start: buffer.baseAddress!.assumingMemoryBound(to: Int16.self), count: sampleCount))
+        // Use AVAudioConverter instead of manual resampling
+        guard let inputFormat = AVAudioFormat(
+            commonFormat: .pcmFormatInt16,
+            sampleRate: inputSampleRate,
+            channels: AVAudioChannelCount(channels),
+            interleaved: true
+        ),
+        let outputFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: outputSampleRate,
+            channels: AVAudioChannelCount(channels),
+            interleaved: true
+        ) else {
+            return nil
         }
         
-        // Determine the number of output samples.
-        let outputSampleCount = Int(Double(inputSamples.count) * resampleRatio)
-        var outputSamples = [Float](repeating: 0, count: outputSampleCount)
-        
-        // Perform linear interpolation to resample.
-        for i in 0..<outputSampleCount {
-            let srcIndex = Double(i) / resampleRatio
-            let lowerIndex = Int(floor(srcIndex))
-            let upperIndex = min(lowerIndex + 1, inputSamples.count - 1)
-            let weight = Float(srcIndex - Double(lowerIndex))
-            
-            let sample = (1.0 - weight) * Float(inputSamples[lowerIndex]) + weight * Float(inputSamples[upperIndex])
-            outputSamples[i] = sample / Float(Int16.max) // Normalize to [-1.0, 1.0]
+        guard let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
+            return nil
         }
         
-        let outputData = outputSamples.withUnsafeBufferPointer { buffer in
-            Data(buffer: buffer)
+        // Create input buffer
+        let frameCount = UInt32(pcm16Data.count) / 2 // 2 bytes per Int16
+        guard let inputBuffer = AVAudioPCMBuffer(pcmFormat: inputFormat, frameCapacity: frameCount) else {
+            return nil
+        }
+        inputBuffer.frameLength = frameCount
+        
+        // Copy input data
+        pcm16Data.withUnsafeBytes { ptr in
+            if let addr = ptr.baseAddress {
+                memcpy(inputBuffer.int16ChannelData?[0], addr, Int(frameCount) * 2)
+            }
         }
         
-        return outputData
+        // Create output buffer
+        let outputFrameCapacity = AVAudioFrameCount(Double(frameCount) * outputSampleRate / inputSampleRate)
+        guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: outputFrameCapacity) else {
+            return nil
+        }
+        
+        var error: NSError?
+        let status = converter.convert(to: outputBuffer, error: &error) { inNumPackets, outStatus in
+            outStatus.pointee = .haveData
+            return inputBuffer
+        }
+        
+        guard status != .error, error == nil else {
+            return nil
+        }
+        
+        // Convert to Data
+        let channelData = outputBuffer.floatChannelData!
+        return Data(bytes: channelData[0], count: Int(outputBuffer.frameLength) * 4)
     }
     
     // Stops audio playback.
     func stopPlayback() {
         audioPlayerNode.stop()
         isPlaying = false
+    }
+
+    // Add this method after init()
+    private func setupAudioFileWriter() {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        recordingURL = documentsPath.appendingPathComponent("audio_recording_\(timestamp).wav")
+        
+        guard let url = recordingURL else {
+            print("Failed to create recording URL")
+            return
+        }
+        
+        // Create an audio file with the same format as our PCM16 input
+        let fileFormat = AVAudioFormat(
+            commonFormat: .pcmFormatInt16,
+            sampleRate: 24000,
+            channels: AVAudioChannelCount(1),
+            interleaved: true
+        )
+        
+        do {
+            audioFileWriter = try AVAudioFile(
+                forWriting: url,
+                settings: fileFormat?.settings ?? [:],
+                commonFormat: .pcmFormatInt16,
+                interleaved: true
+            )
+            print("Audio file writer created successfully at: \(url.path)")
+        } catch {
+            print("Failed to create audio file writer: \(error)")
+        }
+    }
+
+    // Add this method to write chunks
+    private func writeAudioChunkToFile(_ audioData: Data) {
+        guard let audioFile = audioFileWriter else {
+            print("Audio file writer not initialized")
+            return
+        }
+        
+        // Convert Data to AVAudioPCMBuffer
+        let frameCount = UInt32(audioData.count) / 2 // 2 bytes per Int16 sample
+        guard let tempFormat = AVAudioFormat(
+            commonFormat: .pcmFormatInt16,
+            sampleRate: 24000,
+            channels: AVAudioChannelCount(1),
+            interleaved: true
+        ),
+        let pcmBuffer = AVAudioPCMBuffer(pcmFormat: tempFormat, frameCapacity: frameCount) else {
+            print("Failed to create temporary PCM buffer")
+            return
+        }
+        
+        pcmBuffer.frameLength = frameCount
+        
+        // Copy audio data into the buffer
+        audioData.withUnsafeBytes { (ptr: UnsafeRawBufferPointer) in
+            if let addr = ptr.baseAddress {
+                memcpy(pcmBuffer.int16ChannelData?[0], addr, Int(frameCount) * 2)
+            }
+        }
+        
+        // Write the buffer to file
+        do {
+            try audioFile.write(from: pcmBuffer)
+            // print("Wrote \(frameCount) frames to WAV file")
+        } catch {
+            print("Failed to write audio chunk to file: \(error)")
+        }
+    }
+
+    // Add method to get the recording URL
+    func getRecordingURL() -> URL? {
+        return recordingURL
+    }
+
+    // Add method to close the audio file
+    func finalizeRecording() {
+        audioFileWriter = nil
+        if let url = recordingURL {
+            print("Recording saved at: \(url.path)")
+        }
+    }
+
+    // Add this method to list all recordings
+    func listRecordings() -> [URL] {
+        let fileManager = FileManager.default
+        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        
+        do {
+            let fileURLs = try fileManager.contentsOfDirectory(at: documentsURL,
+                                                             includingPropertiesForKeys: nil,
+                                                             options: .skipsHiddenFiles)
+            return fileURLs.filter { $0.pathExtension == "wav" }
+        } catch {
+            print("Failed to list recordings: \(error)")
+            return []
+        }
     }
 }
